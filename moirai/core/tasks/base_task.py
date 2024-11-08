@@ -15,7 +15,7 @@ class TaskStatus(Enum):
 
 class BaseTask:
     def __init__(self, name: str, timeout: int = None):
-        self.id = uuid.uuid4()  # Unique identifier for the task
+        self.id: str  # Unique identifier for the task
         self.name = name  # Task name
         self.timeout = timeout  # Optional timeout for task execution
         self.inputs = []  # List of input objects (to be defined as needed)

@@ -1,5 +1,6 @@
 import logging
 from .base_task import BaseTask, TaskStatus
+from moirai.core.task_registry import task_registry
 
 
 class StartTask(BaseTask):
@@ -34,3 +35,6 @@ class StartTask(BaseTask):
             logging.error(f"Failed to initialize {self.name} task: {e}")
             self.status = TaskStatus.EXECUTION_ERROR
             self.error_code = 3  # Example error code for execution error
+
+
+task_registry.register("StartTask", StartTask)

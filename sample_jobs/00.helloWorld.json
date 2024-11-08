@@ -1,0 +1,51 @@
+{
+    "job_name": "TestJob",
+    "entry_task": "start",
+    "tasks": {
+        "start": {
+            "task_id": "start",
+            "type": "StartTask",
+            "edges": [
+                {
+                    "condition": "success",
+                    "target_task": "create_string"
+                }
+            ]
+        },
+        "create_string": {
+            "task_id": "create_string",
+            "type": "StringTask",
+            "inputs": {
+                "strings": [
+                    "Hello",
+                    "World"
+                ]
+            },
+            "join_str": " ",
+            "edges": [
+                {
+                    "condition": "success",
+                    "target_task": "print_message"
+                }
+            ]
+        },
+        "print_message": {
+            "task_id": "print_message",
+            "type": "PrintTask",
+            "inputs": {
+                "message": "create_string.result"
+            },
+            "edges": [
+                {
+                    "condition": "success",
+                    "target_task": "end"
+                }
+            ]
+        },
+        "end": {
+            "task_id": "end",
+            "type": "EndTask",
+            "edges": []
+        }
+    }
+}

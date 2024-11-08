@@ -1,4 +1,6 @@
-from ..base_task import BaseTask, TaskStatus
+import logging
+from .base_task import BaseTask, TaskStatus
+from moirai.core.task_registry import task_registry
 
 
 class StringTask(BaseTask):
@@ -31,3 +33,6 @@ class StringTask(BaseTask):
             logging.error(f"Error executing {self.name} task: {e}")
             self.status = TaskStatus.EXECUTION_ERROR
             self.error_code = 3  # Example error code for execution error
+
+
+task_registry.register("StringTask", StringTask)
