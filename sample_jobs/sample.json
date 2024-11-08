@@ -1,0 +1,133 @@
+{
+    "job_id": "job_001",
+    "job_name": "String Task",
+    "entry_task_id": "string_task",
+    "tasks": [
+        {
+            "task_id": "start_task",
+            "name": "START ",
+            "type": "StartTask",
+            "parameters": [],
+            "outputs": [
+                {
+                    "name": "start execution time",
+                    "variable_name": "output_time",
+                    "type": "float",
+                    "value": 0.01
+                }
+            ],
+            "inputs": [],
+            "edges": [
+                {
+                    "condition": "success",
+                    "target": "print_task"
+                }
+            ]
+        },
+        {
+            "task_id": "print_task",
+            "name": "Printing a variable",
+            "type": "PrintTask",
+            "parameters": [],
+            "outputs": [],
+            "inputs": [
+                {
+                    "name": "Input String",
+                    "variable_name": "input_string",
+                    "type": "string",
+                    "value": "sample"
+                }
+            ],
+            "edges": [
+                {
+                    "condition": "target",
+                    "target": ""
+                },
+                {
+                    "condition": "success",
+                    "target": "print_task"
+                }
+            ]
+        },
+        {
+            "task_id": "string_task",
+            "name": "my string task",
+            "type": "StringTask",
+            "parameters": [
+                {
+                    "group_id": "1",
+                    "title": "String Join Configuration",
+                    "description": "Configuration for joining strings",
+                    "parameters": [
+                        {
+                            "name": "join_str",
+                            "label": "Join String",
+                            "type": "string",
+                            "value": " - "
+                        }
+                    ]
+                },
+                {
+                    "group_id": "2",
+                    "title": "Fixed String Configuration",
+                    "description": "Use a fixed string instead of joining inputs",
+                    "parameters": [
+                        {
+                            "name": "fixed_string",
+                            "label": "Fixed String",
+                            "type": "string",
+                            "value": "hello world"
+                        }
+                    ]
+                }
+            ],
+            "inputs": [
+                {
+                    "name": "strings",
+                    "variable_name": "input_strings",
+                    "type": "list<string>",
+                    "value": []
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "result",
+                    "variable_name": "output_result",
+                    "type": "string",
+                    "value": "HELLO"
+                }
+            ],
+            "edges": []
+        },
+        {
+            "task_id": "end_task",
+            "name": "THE END",
+            "type": "EndTask",
+            "parameters": [],
+            "outputs": [],
+            "inputs": [
+                {
+                    "name": "status code",
+                    "variable_name": "input_strings",
+                    "type": "list<string>",
+                    "value": [
+                        "previous_task.output1",
+                        "another_task.output2"
+                    ]
+                },
+                {
+                    "name": "execution time",
+                    "variable_name": "input_time",
+                    "type": "float",
+                    "value": "start_task.output_time"
+                }
+            ],
+            "edges": [
+                {
+                    "condition": "target",
+                    "target": ""
+                }
+            ]
+        }
+    ]
+}

@@ -1,38 +1,64 @@
 import logging
-from .base_task import BaseTask, TaskStatus
 from moirai.core.task_registry import task_registry
+from moirai.core.base_task import BaseTask
+from moirai.core.task_status import TaskStatus
+from moirai.core.task_parameter import (
+    TaskEdge,
+    TaskParameterIO,
+    TaskParameterInternal,
+    TaskParameterInternalGroup,
+)
 
 
 class StringTask(BaseTask):
-    def __init__(self, name: str = "StringTask", timeout: int = 5, join_str: str = ""):
-        super().__init__(name=name, timeout=timeout)
-        self.join_str = join_str  # The string to use for joining inputs
-        self.inputs = []  # Ordered list of strings to be joined
-        self.outputs = {"result": ""}  # Output dictionary with a single string output
+    inputs = [TaskParameterIO("input_strings", "Strings", [], "list<string>", "input")]
+    outputs = [TaskParameterIO("output_result", "Output", "", "string", "output")]
+    parameters = [
+        TaskParameterInternalGroup(
+            group_id="fixed_options",
+            title="Fixed string Config",
+            description="used when no inputs",
+            parameters=[
+                TaskParameterInternal(
+                    variable_name="fixed_string",
+                    label="String",
+                    param_type="string",
+                    default_value="",
+                )
+            ],
+        ),
+        TaskParameterInternalGroup(
+            group_id="dynamic_options",
+            title="Input Options",
+            description="Used to configure Inputs",
+            parameters=[
+                TaskParameterInternal(
+                    variable_name="str_join",
+                    label="Join String",
+                    param_type="string",
+                    default_value=", ",
+                )
+            ],
+        ),
+    ]
+    edges: list[TaskEdge] = [
+        # TaskEdge(condition="success"),
+        # TaskEdge(condition="failure"),
+    ]
+
+    def __init__(self, name: str = "StringTask", **kwargs):
+        super().__init__(name=name, **kwargs)
 
     def execute(self):
         """Concatenate input strings with the join string."""
-        try:
-            # Check that inputs are valid (should be a list of strings)
-            if not all(isinstance(item, str) for item in self.inputs):
-                self.status = TaskStatus.VALIDATION_ERROR
-                self.error_code = 2  # Example error code for validation error
-                raise ValueError("All inputs must be strings")
-
-            # Join the input strings with the specified join string
-            if self.inputs:
-                self.outputs["result"] = self.join_str.join(self.inputs)
-            else:
-                self.outputs["result"] = ""
-
-            logging.info(
-                f"{self.name} task executed successfully with output: {self.outputs['result']}"
-            )
-            self.status = TaskStatus.SUCCESS
-        except Exception as e:
-            logging.error(f"Error executing {self.name} task: {e}")
-            self.status = TaskStatus.EXECUTION_ERROR
-            self.error_code = 3  # Example error code for execution error
+        result = self.get_output("result")
+        if strs := self.get_input("strings"):
+            str_join: str = self.get_parameter("dynamic_parameters", "str_join")
+            result = str_join.join(strs)
+        else:
+            fixed_string: str = self.get_parameter("fixed_parameter", "fixed_string")
+            result = fixed_string
+        self.status = TaskStatus.SUCCESS
 
 
 task_registry.register("StringTask", StringTask)

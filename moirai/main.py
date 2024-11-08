@@ -9,19 +9,22 @@ def main():
     )
 
     # Path to the job configuration file
-    job_file = "sample_jobs/00.helloWorld.json"  # Replace with the actual path to your JSON file
+    # job_file = "sample_jobs/00.helloWorld.json"  # Replace with the actual path to your JSON file
+    job_file = (
+        "sample_jobs/sample.json"  # Replace with the actual path to your JSON file
+    )
 
     # Initialize the engine with the job file
-    engine = Engine(job_file)
+    logging.info("Initializing Engine.")
+    engine = Engine()
 
     # Load the job configuration
-    logging.info("Loading job configuration.")
-    engine.load_job()
+    # engine.load_job()
 
     # Run the engine
-    logging.info("Starting engine.")
+    # logging.info("Starting engine.")
+    engine.add_job_from_file(job_file)
     engine.run()
-    logging.info("Engine execution completed.")
 
 
 if __name__ == "__main__":

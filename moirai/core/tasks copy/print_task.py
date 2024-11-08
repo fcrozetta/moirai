@@ -1,35 +1,18 @@
 import logging
-
-from moirai.core.task_parameter import TaskEdge, TaskParameterIO
 from ..base_task import BaseTask, TaskStatus
 from moirai.core.task_registry import task_registry
 
 
 class PrintTask(BaseTask):
-    inputs: list[TaskParameterIO] = [
-        TaskParameterIO(
-            variable_name="input_string",
-            name="String to print",
-            expected_type="string",
-            value="",
-            role="input",
-        )
-    ]
-    outputs = []
-    parameters = []
-    edges: list[TaskEdge] = [
-        TaskEdge(condition="target"),
-        TaskEdge(condition="success"),
-    ]
-
-    def __init__(self, name: str = "PrintTask", **kwargs):
-        super().__init__(name=name, **kwargs)
+    def __init__(self, task_id: str, name: str = "PrintTask", timeout: int = None):
+        super().__init__(task_id=task_id, name=name, timeout=timeout)
+        self.inputs = {"message": ""}  # Expected input: a single string message
 
     def execute(self):
         """Print the input message to the console."""
         try:
             # Ensure the input is a string
-            message = self.get_input("input_string")
+            message = self.inputs.get("message")
             if not isinstance(message, str):
                 self.status = TaskStatus.VALIDATION_ERROR
                 self.error_code = 2  # Example error code for validation error

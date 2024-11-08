@@ -1,8 +1,8 @@
 {
     "job_name": "TestJob",
     "entry_task": "start",
-    "tasks": {
-        "start": {
+    "tasks": [
+        {
             "task_id": "start",
             "type": "StartTask",
             "edges": [
@@ -12,7 +12,7 @@
                 }
             ]
         },
-        "create_string": {
+        {
             "task_id": "create_string",
             "type": "StringTask",
             "inputs": {
@@ -29,7 +29,7 @@
                 }
             ]
         },
-        "print_message": {
+        {
             "task_id": "print_message",
             "type": "PrintTask",
             "inputs": {
@@ -42,10 +42,10 @@
                 }
             ]
         },
-        "end": {
+        {
             "task_id": "end",
             "type": "EndTask",
             "edges": []
         }
-    }
+    ]
 }
