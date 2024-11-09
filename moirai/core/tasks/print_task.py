@@ -29,8 +29,8 @@ class PrintTask(BaseTask):
         """Print the input message to the console."""
         try:
             # Ensure the input is a string
-            message = self.get_input("input_string")
-            if not isinstance(message, str):
+            input_string = self.get_input("input_string")
+            if not isinstance(input_string.value, str):
                 self.status = TaskStatus.VALIDATION_ERROR
                 self.error_code = 2  # Example error code for validation error
                 raise ValueError("Input 'message' must be a string")

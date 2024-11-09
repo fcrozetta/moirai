@@ -51,8 +51,8 @@ class StringTask(BaseTask):
 
     def execute(self):
         """Concatenate input strings with the join string."""
-        result = self.get_output("result")
-        if strs := self.get_input("strings"):
+        result = self.get_output("output_result")
+        if strs := self.get_input("input_strings"):
             str_join: str = self.get_parameter("dynamic_parameters", "str_join")
             result = str_join.join(strs)
         else:

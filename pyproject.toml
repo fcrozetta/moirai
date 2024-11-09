@@ -10,9 +10,7 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = "MIT"
 keywords = []
-authors = [
-  { name = "Fernando Crozetta", email = "fernando@czetta.com" },
-]
+authors = [{ name = "Fernando Crozetta", email = "fernando@czetta.com" }]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Programming Language :: Python",
@@ -27,35 +25,40 @@ classifiers = [
 dependencies = []
 
 [project.urls]
-Documentation = "https://github.com/Fernando Crozetta/moirai#readme"
-Issues = "https://github.com/Fernando Crozetta/moirai/issues"
-Source = "https://github.com/Fernando Crozetta/moirai"
+Documentation = "https://github.com/fcrozetta/moirai#readme"
+Issues = "https://github.com/fcrozetta/moirai/issues"
+Source = "https://github.com/fcrozetta/moirai"
 
 [tool.hatch.version]
-path = "src/moirai/__about__.py"
+path = "moirai/__about__.py"
 
-[tool.hatch.envs.types]
-extra-dependencies = [
-  "mypy>=1.0.0",
-]
-[tool.hatch.envs.types.scripts]
-check = "mypy --install-types --non-interactive {args:src/moirai tests}"
 
 [tool.coverage.run]
 source_pkgs = ["moirai", "tests"]
 branch = true
 parallel = true
-omit = [
-  "src/moirai/__about__.py",
-]
+omit = ["moirai/__about__.py"]
 
 [tool.coverage.paths]
-moirai = ["src/moirai", "*/moirai/src/moirai"]
+moirai = ["moirai", "*/moirai/moirai"]
 tests = ["tests", "*/moirai/tests"]
 
 [tool.coverage.report]
-exclude_lines = [
-  "no cov",
-  "if __name__ == .__main__.:",
-  "if TYPE_CHECKING:",
-]
+exclude_lines = ["no cov", "if __name__ == .__main__.:", "if TYPE_CHECKING:"]
+
+[tool.hatch.envs.moirai]
+dependencies = ["pytest>=7.0.0", "pytest-cov>=4.0.0", "ruff>=0.1.0"]
+
+[tool.hatch.envs.moirai.scripts]
+test = "pytest tests/ --cov=src --cov-report=term-missing"
+lint = ["ruff check .", "mypy src tests"]
+format = ["ruff check --fix ."]
+
+[tool.hatch.envs.moirai.env-vars]
+PY_COLORS = "1"
+PYTHONPATH = "."
+
+[tool.hatch.envs.release]
+dependencies = []
+[tool.hatch.build]
+targets = { wheel = { universal = true } }

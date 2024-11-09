@@ -1,7 +1,7 @@
 {
     "job_id": "job_001",
-    "job_name": "String Task",
-    "entry_task_id": "string_task",
+    "job_name": "Hello world job",
+    "entry_task_id": "start_task",
     "tasks": [
         {
             "task_id": "start_task",
@@ -35,7 +35,7 @@
                     "name": "Input String",
                     "variable_name": "input_string",
                     "type": "string",
-                    "value": "sample"
+                    "value": "string_task.output_result"
                 }
             ],
             "edges": [

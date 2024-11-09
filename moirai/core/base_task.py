@@ -1,6 +1,7 @@
 import logging
 from typing import List, Optional
 from moirai.core.task_status import TaskStatus
+from abc import ABC, abstractmethod
 from moirai.core.task_parameter import (
     TaskEdge,
     TaskParameterInternal,
@@ -9,7 +10,12 @@ from moirai.core.task_parameter import (
 )
 
 
-class BaseTask:
+class BaseTask(ABC):
+    inputs: list[TaskParameterIO] = []
+    outputs: list[TaskParameterIO] = []
+    parameters: list[TaskParameterInternalGroup] = []
+    edges: list[TaskEdge] = []
+
     def __init__(
         self,
         task_id: str,
@@ -27,6 +33,17 @@ class BaseTask:
         self._initialize_outputs(outputs)
         self._initialize_parameters(parameters)
         self._initialize_edges(edges)
+
+    def __str__(self):
+        return self.name
+
+    def summary(self):
+        return {
+            "task_id": self.task_id,
+            "name": self.name,
+            "status": self.status,
+            "error_code": self.error_code,
+        }
 
     def _initialize_parameters(self, parameters: list[dict]):
         pass
@@ -87,9 +104,10 @@ class BaseTask:
         return None
 
     def pre_execute(self):
-        """Prepare the task for execution."""
+        """Prepare the task for execution. Override this method if needed."""
         pass
 
+    @abstractmethod
     def execute(self):
         """Main execution logic for the task."""
         raise NotImplementedError(
@@ -97,7 +115,7 @@ class BaseTask:
         )
 
     def post_execute(self):
-        """Clean up resources after execution."""
+        """Clean up resources after execution. Override this method if needed."""
         pass
 
     def run(self):

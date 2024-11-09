@@ -1,6 +1,8 @@
 import json, logging
 from moirai.core.task_registry import task_registry
 from moirai.core.job import Job
+import threading
+import queue
 
 
 class Engine:
@@ -13,7 +15,7 @@ class Engine:
 
         # Use the singleton task registry to discover tasks
         task_registry.discover_tasks()
-        self._jobs = []
+        self.job_queue = queue.Queue()
 
     # def load_job(self):
     #     """Load and parse the job configuration file to initialize tasks."""
@@ -81,10 +83,30 @@ class Engine:
 
     def add_job(self, job_str: str):
         job = Job(job_str)
-        self._jobs.append(job)
+        self.job_queue.put(job)
 
-    def run(self):
-        print(self._jobs)
+    def worker(self, job_queue):
+        while True:
+            job = job_queue.get()
+            if job is None:
+                break
+            job.run()
+            job_queue.task_done()
+
+    def start(self):
+
+        self.threads = []
+
+        # for job in self.job_queue:
+        #     self.job_queue.put(job)
+
+        for _ in range(4):  # Number of worker threads
+            thread = threading.Thread(target=self.worker, args=(self.job_queue,))
+            thread.start()
+            self.threads.append(thread)
+
+        # Return immediately after setting up the pool
+        return
 
     # def run(self):
     #     """Run the job from the entry task, following the task flow until completion."""

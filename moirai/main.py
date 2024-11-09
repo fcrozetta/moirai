@@ -1,11 +1,11 @@
 import logging
-from core.engine import Engine
+from moirai.core.engine import Engine
 
 
 def main():
     # Configure logging for detailed output
     logging.basicConfig(
-        level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
+        level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
     )
 
     # Path to the job configuration file
@@ -24,7 +24,10 @@ def main():
     # Run the engine
     # logging.info("Starting engine.")
     engine.add_job_from_file(job_file)
-    engine.run()
+    engine.start()
+    engine.add_job_from_file(job_file)
+    engine.add_job_from_file(job_file)
+    engine.add_job_from_file(job_file)
 
 
 if __name__ == "__main__":

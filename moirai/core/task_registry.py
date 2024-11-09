@@ -19,12 +19,12 @@ class TaskRegistry:
         """Register a task class with a type name."""
         logging.info(f"Registering task: {task_type}")
         self._registry[task_type] = task_class
-        logging.info(f"Current registry state: {self._registry}")
+        logging.debug(f"Current registry state: {self._registry}")
 
     def create_task(self, task_type: str, **kwargs):
         """Instantiate a task of the specified type."""
         logging.info(f"Attempting to create task of type: {task_type}")
-        logging.info(f"Current registry state in create_task: {self._registry}")
+        logging.debug(f"Current registry state in create_task: {self._registry}")
         task_class = self._registry.get(task_type)
         if not task_class:
             raise ValueError(f"Task type '{task_type}' is not registered.")
@@ -38,9 +38,9 @@ class TaskRegistry:
 
         for _, module_name, _ in pkgutil.iter_modules([package_path]):
             full_module_name = f"{task_package}.{module_name}"
-            logging.info(f"Importing module {full_module_name}")
+            logging.debug(f"Importing module {full_module_name}")
             importlib.import_module(full_module_name)
-        logging.info(f"Registry state after discovery: {self._registry}")
+        logging.debug(f"Registry state after discovery: {self._registry}")
 
 
 # Singleton instance of TaskRegistry

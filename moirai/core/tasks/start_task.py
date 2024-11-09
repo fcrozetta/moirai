@@ -5,7 +5,7 @@ from moirai.core.task_parameter import (
     TaskParameterIO,
     TaskParameterInternalGroup,
 )
-from ..base_task import BaseTask, TaskStatus
+from moirai.core.base_task import BaseTask, TaskStatus
 from moirai.core.task_registry import task_registry
 
 
