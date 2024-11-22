@@ -9,3 +9,6 @@
 #include <list>
 
 #include "errors.hpp"
+
+// ValueData type alias
+using ValueData = std::variant<std::monostate, int, float, std::string, bool, std::list<int>, std::list<float>, std::list<std::string>, std::list<bool>>;

@@ -15,9 +15,6 @@ enum class SocketType
     BooleanList
 };
 
-// ValueData type alias
-using ValueData = std::variant<std::monostate, int, float, std::string, bool, std::list<int>, std::list<float>, std::list<std::string>, std::list<bool>>;
-
 // Forward declaration of BaseTask
 class BaseTask;
 
@@ -44,7 +41,19 @@ public:
     bool hasValue();
 
     template <typename T>
-    T getValue() const;
+    T getValue() const
+    {
+        if (std::holds_alternative<std::monostate>(value))
+        {
+            throw std::logic_error("Value was not resolved or was not set");
+        }
+
+        if (!std::holds_alternative<T>(value))
+        {
+            throw std::invalid_argument("Type mismatch in getValue");
+        }
+        return std::get<T>(value);
+    }
 };
 
 // Derived OutputSocket class

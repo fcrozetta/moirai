@@ -4,7 +4,7 @@
 
 // Socket class implementation
 Socket::Socket(const std::string &id, const std::string &label, SocketType type)
-    : id(id), label(label), type(type), parent(nullptr) {}
+    : parent(nullptr), id(id), label(label), type(type) {}
 
 Socket::~Socket() = default;
 
@@ -31,20 +31,7 @@ bool Socket::hasValue()
     return !std::holds_alternative<std::monostate>(value);
 }
 
-template <typename T>
-T Socket::getValue() const
-{
-    if (std::holds_alternative<std::monostate>(value))
-    {
-        throw std::logic_error("Value was not resolved or was not set");
-    }
 
-    if (!std::holds_alternative<T>(value))
-    {
-        throw std::invalid_argument("Type mismatch in getValue");
-    }
-    return std::get<T>(value);
-}
 
 // OutputSocket class implementation
 OutputSocket::OutputSocket(const std::string &id, const std::string &label, SocketType type)
