@@ -1,49 +1,30 @@
-# Project name and output directory
+# Compiler and flags
+CXX = g++
+CXXFLAGS = -std=c++20 -Iinclude -MMD
+LDFLAGS = -L/opt/homebrew/lib
+
+# Directories
+SRC_DIR = src
+OBJ_DIR = dist/obj
 OUT_DIR = dist
 OUT = $(OUT_DIR)/moirai
-MACOS_DIR = $(CONTENTS_DIR)/MacOS
-RESOURCES_DIR = $(CONTENTS_DIR)/Resources
 
-# Compiler and linker options
-CXX = g++
-CXXFLAGS = -std=c++20 -Iinclude
+# Find all source files
+SRCS = $(wildcard $(SRC_DIR)/*.cpp)
+OBJS = $(SRCS:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)
+DEPS = $(OBJS:.o=.d)
 
-# Default build mode (debug or release)
-BUILD = debug
+# Targets
+all: $(OUT)
 
-# Platform-specific configuration
-UNAME_S := $(shell uname -s)
+$(OUT): $(OBJS)
+	$(CXX) $(CXXFLAGS) -g $(OBJS) $(LDFLAGS) -o $@
 
-ifeq ($(UNAME_S), Darwin)          # macOS
-    CXXFLAGS += -I/opt/homebrew/include
-    LDFLAGS = -L/opt/homebrew/lib
-endif
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
+	mkdir -p $(OBJ_DIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Source and output
-# SRC = src/moirai.cpp
-SRC = src/main.cpp
-# LOGO = logo.png
+-include $(DEPS)
 
-# Build commands
-all: $(OUT_DIR) $(BUILD)
-
-# Create output directory
-$(OUT_DIR):
-	mkdir -p $(OUT_DIR)
-
-# Create macOS app bundle for release builds
-release: $(OUT_DIR)
-	# Create the necessary directories
-	mkdir -p $(MACOS_DIR)
-	mkdir -p $(RESOURCES_DIR)
-
-	# Compile the application
-	$(CXX) $(CXXFLAGS) -O3 $(SRC) $(LDFLAGS) -o $(MACOS_DIR)/moirai
-
-# Debug target (standard executable)
-debug: $(OUT_DIR)
-	$(CXX) $(CXXFLAGS) -g $(SRC) $(LDFLAGS) -o $(OUT)
-
-# Clean command
 clean:
 	rm -rf $(OUT_DIR)
