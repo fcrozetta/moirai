@@ -1,6 +1,4 @@
-#ifndef JOB_HPP
-#define JOB_HPP
-
+#pragma once
 #include <list>
 #include <iostream>
 #include "tasks/base_task.hpp"
@@ -12,5 +10,3 @@ public:
     Job(/* args */) {}
     ~Job() {}
 };
-
-#endif

@@ -1,6 +1,4 @@
-#ifndef ENGINE_HPP
-#define ENGINE_HPP
-
+#pragma once
 #include <iostream>
 #include <list>
 #include "../job.hpp"
@@ -23,4 +21,3 @@ public:
         std::cout << "Engine Stopped" << std::endl;
     }
 };
-#endif

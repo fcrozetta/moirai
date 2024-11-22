@@ -1,19 +1,19 @@
-#include "socket.hpp"
-#include "core/engine.hpp"
-#include "tasks/base_task.hpp"
-#include "tasks/string_task.hpp"
-#include "tasks/print_task.hpp"
 
+#include "TaskSocket.hpp"
 int main()
 {
-    Engine engine;
+    InputSocket("input1", "label", SocketType::String);
+    // Engine engine;
 
-    engine.start();
-    engine.stop();
+    // engine.start();
 
-    auto stringTask = StringTask("task1", "String task");
+    // engine.stop();
+
+    // auto stringTask = StringTask("task1", "String task");
+
     // auto printTask = PrintTask("task2", "Print task");
-    stringTask.run();
+    // printTask.getInputSocket("input_string")->set = stringTask.getOutputSocket("output_string");
+    // stringTask.run();
     // printTask.run();
     return 0;
 }

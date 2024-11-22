@@ -1,5 +1,4 @@
-#ifndef STRING_TASK_HPP
-#define STRING_TASK_HPP
+#pragma once
 
 #include <iostream>
 #include <list>
@@ -26,5 +25,3 @@ public:
         this->status = TaskStatus::SUCCESS;
     }
 };
-
-#endif

@@ -1,9 +1,7 @@
-#ifndef PRINT_TASK_HPP
-#define PRINT_TASK_HPP
-
+#pragma once
 #include <iostream>
 #include <list>
-#include "base_task.hpp"
+#include "BaseTask.hpp"
 
 class PrintTask : public BaseTask
 {
@@ -23,5 +21,3 @@ public:
         this->status = TaskStatus::SUCCESS;
     }
 };
-
-#endif
