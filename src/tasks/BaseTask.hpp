@@ -22,8 +22,11 @@ protected:
     std::string id;
     std::string label;
     TaskStatus status = TaskStatus::PENDING;
+    BaseTask *onSuccessTask = nullptr;
+    BaseTask *onFailureTask = nullptr;
 
 public:
+    bool isTargetable = true; // Other tasks can connect here?
     std::list<InputSocket> inputs;
     std::list<OutputSocket> outputs;
 
