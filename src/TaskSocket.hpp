@@ -15,15 +15,15 @@ enum class SocketType
     BooleanList
 };
 
-// Forward declaration of BaseTask
-class BaseTask;
+// Forward declaration of Task
+class Task;
 
 // Base Socket class
 class Socket
 {
 protected:
-    ValueData value;  // The actual value of the socket
-    BaseTask *parent; // Pointer to the parent task for resolving inputs
+    ValueData value; // The actual value of the socket
+    Task *parent;    // Pointer to the parent task for resolving inputs
 
 public:
     std::string id;
@@ -34,11 +34,17 @@ public:
     Socket(const std::string &id, const std::string &label, SocketType type);
     virtual ~Socket();
 
+    void addParent(Task *parent);
+    Task *getParent();
+
     virtual void validate() const = 0;
-    void resolve();
+    virtual void resolve() = 0;
+
     bool isCompatible(Socket *otherSocket);
     void setValue(ValueData data);
     bool hasValue();
+
+    ValueData getRawValue();
 
     template <typename T>
     T getValue() const
@@ -62,6 +68,7 @@ class OutputSocket : public Socket
 public:
     OutputSocket(const std::string &id, const std::string &label, SocketType type);
     void validate() const override;
+    void resolve() override;
 };
 
 // Derived InputSocket class
@@ -76,6 +83,8 @@ public:
     InputSocket(const std::string &id, const std::string &label, SocketType type);
 
     void validate() const override;
+    void resolve() override;
     void setSource(OutputSocket *source);
     OutputSocket *getSource();
+    void resolveRawValue();
 };
