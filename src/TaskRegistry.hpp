@@ -16,6 +16,7 @@ public:
     template <typename T>
     void registerTask(const std::string &taskName)
     {
+        static_assert(std::is_base_of<Task, T>::value, "T must be a subclass of Task");
         registry[taskName] = [](const std::string &id, const std::string &label) -> Task *
         { return new T(id, label); };
     }
