@@ -1,5 +1,5 @@
 if __name__ == "__main__":
-    import time  # Example usage
+    import time
     from moirai_engine.core.engine import Engine
     from moirai_engine.core.job import Job
     from moirai_engine.tasks.start_task import StartTask
@@ -32,5 +32,22 @@ if __name__ == "__main__":
     engine.add_job(job)
 
     # Let the engine run for a while
-    time.sleep(5)
+    time.sleep(2)
+
+    # Check notifications
+    notifications = engine.get_notifications("job1")
+    for notification in notifications:
+        print(notification)
+
+    # Cancel the current job
+    engine.cancel_current_job("job1")
+
+    # Let the engine run for a while
+    time.sleep(2)
+
+    # Check notifications
+    notifications = engine.get_notifications("job1")
+    for notification in notifications:
+        print(notification)
+
     engine.stop()

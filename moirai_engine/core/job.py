@@ -17,13 +17,14 @@ class Job:
         self.description: str = description
         self.status: JobStatus = JobStatus.PENDING
 
-        self.tasks: list[Task] = []  # ? This should DEFINITELY be a hashmap
+        self.tasks: list[Task] = []
         self.current_task = None
         self.start_task_id: str = None
 
         self.queued_at: datetime = datetime.now()
         self.started_at: datetime = None
         self.completed_at: datetime = None
+        self.engine = None  # Reference to the engine
 
     def to_dict(self):
         result = {
@@ -54,7 +55,6 @@ class Job:
 
     @classmethod
     def from_dict(cls, data):
-        # FIXME: I don't think this is working
         job = cls(data["id"], data["label"], data["description"])
         job.start_task_id = data["start_task_id"]
         job.status = JobStatus[data["status"]]
@@ -62,6 +62,7 @@ class Job:
         job.started_at = datetime.strptime(data["started_at"], "%Y-%m-%d %H:%M:%S")
         job.completed_at = datetime.strptime(data["completed_at"], "%Y-%m-%d %H:%M:%S")
         job.tasks = [Task.from_dict(task_data) for task_data in data["tasks"]]
+        return job
 
     def add_task(self, task: Task):
         task.parent = self
@@ -104,3 +105,7 @@ class Job:
             self.current_task = self.find(self.start_task_id)
         self.current_task.run()
         self.completed_at = datetime.now()
+
+    def notify(self, message: str, task_id: str = None):
+        if self.engine:
+            self.engine.notify(message, self.id)

@@ -40,6 +40,21 @@ class Task(ABC):
             "on_failure": self.on_failure.get_full_path() if self.on_failure else None,
         }
 
+    @classmethod
+    def from_dict(cls, data):
+        obj = cls(
+            task_id=data["id"], label=data["label"], description=data["description"]
+        )
+        obj.status = TaskStatus[data["status"]]
+        obj.is_targetable = data["is_targetable"]
+        obj.inputs = [
+            InputSocket.from_dict(input_data, obj) for input_data in data["inputs"]
+        ]
+        obj.outputs = [
+            OutputSocket.from_dict(output_data, obj) for output_data in data["outputs"]
+        ]
+        return obj
+
     def create_input(
         self, name: str, label: str, socket_type: SocketType
     ) -> InputSocket:
@@ -70,7 +85,7 @@ class Task(ABC):
 
     def run(self):
         if self.status == TaskStatus.PENDING:
-            print(f"Running task {self.label}")
+            self.notify(f"Running task {self.label}")
             self.status = TaskStatus.RUNNING
             for socket in self.inputs:
                 socket.resolve()
@@ -80,6 +95,7 @@ class Task(ABC):
                 self.status = TaskStatus.COMPLETED
             except Exception as e:
                 self.status = TaskStatus.ERROR
+                self.notify(f"Error in task {self.label}: {str(e)}")
                 raise e  # ? Should we raise the exception here?
             self.postExecute()
             # ? Maybe The job should be responsible for running the on_success and on_failure tasks
@@ -87,6 +103,10 @@ class Task(ABC):
                 self.on_success.run()
             elif self.status == TaskStatus.ERROR and self.on_failure is not None:
                 self.on_failure.run()
+
+    def notify(self, message: str):
+        if self.parent:
+            self.parent.notify(message, self.id)
 
     def find_in_job(self, path: str):
         if path.startswith(self.get_full_path()):
