@@ -15,6 +15,7 @@ class Engine:
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
         self.futures = []
         self.cancel_event = threading.Event()
+        self.notification_listeners = []
 
     def start(self):
         if not self.running:
@@ -61,10 +62,12 @@ class Engine:
 
     def notify(self, message: str, job_id: str = None):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        notification = {"message": message, "timestamp": timestamp, "job_id": job_id}
+        notification = {"job_id": job_id, "message": message, "timestamp": timestamp}
         if job_id and job_id in self.job_notification_queues:
             self.job_notification_queues[job_id].put(notification)
             self.job_histories[job_id].append(notification)
+            for listener in self.notification_listeners:
+                listener(notification)
         else:
             print(notification)  # Fallback to console if no job_id is provided
 
@@ -79,3 +82,17 @@ class Engine:
         if job_id in self.job_histories:
             return self.job_histories[job_id]
         return []
+
+    def add_notification_listener(self, listener):
+        self.notification_listeners.append(listener)
+
+    def start_notification_listener(self, job_id: str):
+        def listen():
+            while self.running:
+                notifications = self.get_notifications(job_id)
+                for notification in notifications:
+                    print(notification)
+                time.sleep(1)  # Adjust the sleep time as needed
+
+        listener_thread = threading.Thread(target=listen)
+        listener_thread.start()
