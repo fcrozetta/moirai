@@ -8,22 +8,22 @@ class Engine:
         self.job_queue = asyncio.Queue()
         self.job_notification_queues = {}
         self.job_histories = {}
-        self.running = False
+        self.is_running = False
         self.notification_listeners = []
 
     async def start(self):
-        if not self.running:
-            self.running = True
+        if not self.is_running:
+            self.is_running = True
             asyncio.create_task(self.run())
             await self.notify("Engine started")
 
     async def stop(self):
-        if self.running:
-            self.running = False
+        if self.is_running:
+            self.is_running = False
             await self.notify("Engine stopped")
 
     async def run(self):
-        while self.running:
+        while self.is_running:
             try:
                 job = await self.job_queue.get()
                 if job:
@@ -93,7 +93,7 @@ class Engine:
             raise ValueError("Listener must be an async function")
 
     async def start_notification_listener(self, job_id: str):
-        while self.running:
+        while self.is_running:
             notifications = await self.get_notifications(job_id)
             for notification in notifications:
                 print(notification)
