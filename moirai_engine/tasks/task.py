@@ -1,3 +1,4 @@
+import asyncio
 from enum import Enum
 from abc import ABC, abstractmethod
 from moirai_engine.sockets.socket import SocketType
@@ -87,8 +88,8 @@ class Task(ABC):
         if self.status == TaskStatus.PENDING:
             await self.notify(f"Running task {self.label}")
             self.status = TaskStatus.RUNNING
-            for socket in self.inputs:
-                socket.resolve()
+            # ? will this cause a deadlock?
+            await asyncio.gather(*[socket.resolve() for socket in self.inputs])
             self.preExecute()
             try:
                 self.execute()

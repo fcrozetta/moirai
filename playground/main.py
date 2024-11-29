@@ -19,13 +19,19 @@ async def main():
     # Add jobs to the engine
     await engine.add_job(job)
     await engine.add_job(job2)
+    await engine.add_job(hello_world())
+    await engine.add_job(hello_world())
+    await engine.add_job(hello_world())
+    await engine.add_job(slow_hello_world())
+    await engine.add_job(slow_hello_world())
+    await engine.add_job(slow_hello_world())
+    await engine.add_job(slow_hello_world())
+    await engine.add_job(slow_hello_world())
+    await engine.add_job(slow_hello_world())
 
     # Start notification listeners for the jobs
     asyncio.create_task(engine.start_notification_listener(job.id))
     asyncio.create_task(engine.start_notification_listener(job2.id))
-
-    # Let the engine run for a while
-    await asyncio.sleep(2)
 
     # Let the engine run for a while
     await asyncio.sleep(2)
