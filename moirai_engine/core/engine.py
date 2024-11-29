@@ -1,98 +1,105 @@
-import threading
-import queue
-import time
+import asyncio
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from moirai_engine.core.job import Job, JobStatus
+from moirai_engine.core.job import Job
 
 
 class Engine:
     def __init__(self, max_workers=4):
-        self.job_queue = queue.Queue()
+        self.job_queue = asyncio.Queue()
         self.job_notification_queues = {}
         self.job_histories = {}
         self.running = False
-        self.executor = ThreadPoolExecutor(max_workers=max_workers)
-        self.futures = []
-        self.cancel_event = threading.Event()
         self.notification_listeners = []
 
-    def start(self):
+    async def start(self):
         if not self.running:
             self.running = True
-            self.thread = threading.Thread(target=self.run)
-            self.thread.start()
-            self.notify("Engine started")
+            asyncio.create_task(self.run())
+            await self.notify("Engine started")
 
-    def stop(self):
+    async def stop(self):
         if self.running:
             self.running = False
-            self.executor.shutdown(wait=True)
-            self.thread.join()
-            self.notify("Engine stopped")
+            await self.notify("Engine stopped")
 
-    def run(self):
+    async def run(self):
         while self.running:
             try:
-                job = self.job_queue.get(timeout=1)  # Wait for a job for 1 second
+                job = await self.job_queue.get()
                 if job:
-                    self.job_notification_queues[job.id] = queue.Queue()
+                    self.job_notification_queues[job.id] = asyncio.Queue()
                     self.job_histories[job.id] = []
                     job.engine = self  # Set the engine reference
-                    future = self.executor.submit(self.process_job, job)
-                    self.futures.append(future)
-                    self.notify(f"Job {job.label} started", job.id)
-            except queue.Empty:
-                continue
+                    asyncio.create_task(self.process_job(job))
+                    await self.notify(f"Job {job.label} started", job.id)
+            except asyncio.QueueEmpty:
+                await asyncio.sleep(1)
 
-    def process_job(self, job: Job):
+    async def process_job(self, job: Job):
+        """
+        Processes a single job.
+
+        Args:
+            job (Job): The job to be processed.
+        """
         try:
-            job.run()
-            self.notify(f"Job {job.label} completed", job.id)
+            await job.run()
+            await self.notify(f"Job {job.label} completed", job.id)
         except Exception as e:
-            self.notify(f"Job {job.label} failed: {str(e)}", job.id)
+            await self.notify(f"Job {job.label} failed: {str(e)}", job.id)
 
-    def add_job(self, job: Job):
-        self.job_queue.put(job)
-        self.notify(f"Job added: {job.label}", job.id)
+    async def add_job(self, job: Job):
+        """
+        Adds a job to the job queue.
 
-    def cancel_current_job(self, job_id: str):
-        self.cancel_event.set()
-        self.notify(f"Job {job_id} cancelled", job_id)
+        Args:
+            job (Job): The job to be added.
+        """
+        await self.job_queue.put(job)
+        await self.notify(f"Job added: {job.label}", job.id)
 
-    def notify(self, message: str, job_id: str = None):
+    async def notify(self, message: str, job_id: str = None):
+        """
+        Sends a notification message.
+
+        Args:
+            message (str): The notification message.
+            job_id (str, optional): The ID of the job associated with the notification.
+        """
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         notification = {"job_id": job_id, "message": message, "timestamp": timestamp}
         if job_id and job_id in self.job_notification_queues:
-            self.job_notification_queues[job_id].put(notification)
+            await self.job_notification_queues[job_id].put(notification)
             self.job_histories[job_id].append(notification)
             for listener in self.notification_listeners:
-                listener(notification)
+                if asyncio.iscoroutinefunction(listener):
+                    await listener(notification)
+                else:
+                    listener(notification)
         else:
             print(notification)  # Fallback to console if no job_id is provided
 
-    def get_notifications(self, job_id: str):
+    async def get_notifications(self, job_id: str):
         notifications = []
         if job_id in self.job_notification_queues:
             while not self.job_notification_queues[job_id].empty():
-                notifications.append(self.job_notification_queues[job_id].get())
+                notifications.append(await self.job_notification_queues[job_id].get())
         return notifications
 
-    def get_notification_history(self, job_id: str):
+    def add_notification_listener(self, listener):
+        if asyncio.iscoroutinefunction(listener):
+            self.notification_listeners.append(listener)
+        else:
+            raise ValueError("Listener must be an async function")
+
+    async def start_notification_listener(self, job_id: str):
+        while self.running:
+            notifications = await self.get_notifications(job_id)
+            for notification in notifications:
+                print(notification)
+            await asyncio.sleep(1)  # Adjust the sleep time as needed
+
+    async def get_notification_history(self, job_id: str):
         if job_id in self.job_histories:
             return self.job_histories[job_id]
         return []
-
-    def add_notification_listener(self, listener):
-        self.notification_listeners.append(listener)
-
-    def start_notification_listener(self, job_id: str):
-        def listen():
-            while self.running:
-                notifications = self.get_notifications(job_id)
-                for notification in notifications:
-                    print(notification)
-                time.sleep(1)  # Adjust the sleep time as needed
-
-        listener_thread = threading.Thread(target=listen)
-        listener_thread.start()

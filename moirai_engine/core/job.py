@@ -99,13 +99,13 @@ class Job:
         else:
             raise ValueError("Invalid path format")
 
-    def run(self):
+    async def run(self):
         self.started_at = datetime.now()
         if self.current_task is None:
             self.current_task = self.find(self.start_task_id)
-        self.current_task.run()
+        await self.current_task.run()
         self.completed_at = datetime.now()
 
-    def notify(self, message: str, task_id: str = None):
+    async def notify(self, message: str, task_id: str = None):
         if self.engine:
-            self.engine.notify(message, self.id)
+            await self.engine.notify(message, self.id)

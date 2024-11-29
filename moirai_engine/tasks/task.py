@@ -83,9 +83,9 @@ class Task(ABC):
         self.outputs.append(socket)
         return self.outputs[-1]
 
-    def run(self):
+    async def run(self):
         if self.status == TaskStatus.PENDING:
-            self.notify(f"Running task {self.label}")
+            await self.notify(f"Running task {self.label}")
             self.status = TaskStatus.RUNNING
             for socket in self.inputs:
                 socket.resolve()
@@ -95,18 +95,18 @@ class Task(ABC):
                 self.status = TaskStatus.COMPLETED
             except Exception as e:
                 self.status = TaskStatus.ERROR
-                self.notify(f"Error in task {self.label}: {str(e)}")
+                await self.notify(f"Error in task {self.label}: {str(e)}")
                 raise e  # ? Should we raise the exception here?
             self.postExecute()
             # ? Maybe The job should be responsible for running the on_success and on_failure tasks
             if self.status == TaskStatus.COMPLETED and self.on_success is not None:
-                self.on_success.run()
+                await self.on_success.run()
             elif self.status == TaskStatus.ERROR and self.on_failure is not None:
-                self.on_failure.run()
+                await self.on_failure.run()
 
-    def notify(self, message: str):
+    async def notify(self, message: str):
         if self.parent:
-            self.parent.notify(message, self.id)
+            await self.parent.notify(message, self.id)
 
     def find_in_job(self, path: str):
         if path.startswith(self.get_full_path()):

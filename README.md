@@ -88,8 +88,6 @@ engine.start_notification_listener(job2.id)
 # Let the engine run for a while
 time.sleep(2)
 
-# Cancel the current job
-engine.cancel_current_job(job.id)
 
 # Let the engine run for a while
 time.sleep(2)
