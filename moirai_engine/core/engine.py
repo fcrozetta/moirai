@@ -65,4 +65,4 @@ class Engine:
         if job_id not in self.notification_listeners:
             self.notification_listeners[job_id] = []
         for listener in self.notification_listeners[job_id]:
-            asyncio.ensure_future(listener(system_message))
+            asyncio.create_task(listener(system_message))
