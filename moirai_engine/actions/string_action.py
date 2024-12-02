@@ -1,9 +1,9 @@
-from moirai_engine.tasks.task import Task, TaskStatus
+from moirai_engine.actions.action import Action, ActionStatus
 from moirai_engine.sockets.socket import SocketType
 
 
-class StringTask(Task):
-    def __init__(self, id: str, label: str = "String Task", description: str = ""):
+class StringAction(Action):
+    def __init__(self, id: str, label: str = "String Action", description: str = ""):
         super().__init__(id, label, description)
         input_1 = self.create_input("input_string", "string", SocketType.String)
         input_1.allow_direct_input = True
@@ -16,4 +16,4 @@ class StringTask(Task):
         output_string = self.get_output("output_string")
         output_string.set_value(input_string.get_value())
 
-        self.status = TaskStatus.COMPLETED
+        self.status = ActionStatus.COMPLETED

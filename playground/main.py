@@ -17,7 +17,7 @@ async def main():
 
     # Add jobs to the engine
     await engine.add_job(job, notification_listener)
-    await engine.add_job(hello_world(), notification_listener)
+    # await engine.add_job(hello_world(), notification_listener)
     # await engine.add_job(job2)
     # await engine.add_job(hello_world())
     # await engine.add_job(hello_world())
@@ -34,7 +34,7 @@ async def main():
 
     # Let the engine run for a while
     await asyncio.sleep(2)
-    await engine.add_job(hello_world())
+    # await engine.add_job(hello_world())
 
     await engine.stop()
 

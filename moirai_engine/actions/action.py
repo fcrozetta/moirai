@@ -6,27 +6,27 @@ from moirai_engine.sockets.input_socket import InputSocket
 from moirai_engine.sockets.output_socket import OutputSocket
 
 
-class TaskStatus(Enum):
+class ActionStatus(Enum):
     PENDING = "PENDING"
     RUNNING = "RUNNING"
     COMPLETED = "COMPLETED"
     ERROR = "ERROR"
 
 
-class Task(ABC):
+class Action(ABC):
 
-    def __init__(self, task_id: str, label: str, description: str = ""):
-        self.id = task_id
+    def __init__(self, action_id: str, label: str, description: str = ""):
+        self.id = action_id
         self.label = label
         self.description = description
-        self.status = TaskStatus.PENDING
+        self.status = ActionStatus.PENDING
 
         self.parent = None
-        self.is_targetable: bool = True  # this means other tasks can connect here
+        self.is_targetable: bool = True  # this means other actions can connect here
         self.inputs: list[InputSocket] = []  # ? This should DEFINITELY be a hashmap
         self.outputs: list[OutputSocket] = []  # ? This should DEFINITELY be a hashmap
-        self.on_success: "Task" = None
-        self.on_failure: "Task" = None
+        self.on_success: "Action" = None
+        self.on_failure: "Action" = None
 
     def to_dict(self):
         return {
@@ -44,9 +44,9 @@ class Task(ABC):
     @classmethod
     def from_dict(cls, data):
         obj = cls(
-            task_id=data["id"], label=data["label"], description=data["description"]
+            action_id=data["id"], label=data["label"], description=data["description"]
         )
-        obj.status = TaskStatus[data["status"]]
+        obj.status = ActionStatus[data["status"]]
         obj.is_targetable = data["is_targetable"]
         obj.inputs = [
             InputSocket.from_dict(input_data, obj) for input_data in data["inputs"]
@@ -89,32 +89,28 @@ class Task(ABC):
             self.parent.notify(message)
 
     async def run(self):
-        self.notify(f"[Start] Task: {self.get_full_path()}")
-        if self.status == TaskStatus.PENDING:
-            self.status = TaskStatus.RUNNING
+        self.notify(f"[Start] Action: {self.get_full_path()}")
+        if self.status == ActionStatus.PENDING:
+            self.status = ActionStatus.RUNNING
 
             # ? will this cause a deadlock?
             await asyncio.gather(*[socket.resolve() for socket in self.inputs])
             self.preExecute()
             try:
                 await self.execute()
-                self.status = TaskStatus.COMPLETED
-                self.notify(f"[End] Task: {self.label}")
+                self.status = ActionStatus.COMPLETED
+                self.notify(f"[End] Action: {self.label}")
             except Exception as e:
-                self.status = TaskStatus.ERROR
-                self.notify(f"Error in task {self.label}: {str(e)}")
-                print(f"Error in task {self.label}: {str(e)}")
+                self.status = ActionStatus.ERROR
+                self.notify(f"Error in action {self.label}: {str(e)}")
+                print(f"Error in action {self.label}: {str(e)}")
                 raise e  # ? Should we raise the exception here?
             self.postExecute()
-            # ? Maybe The job should be responsible for running the on_success and on_failure tasks
-            if self.status == TaskStatus.COMPLETED and self.on_success is not None:
+            # ? Maybe The job should be responsible for running the on_success and on_failure actions
+            if self.status == ActionStatus.COMPLETED and self.on_success is not None:
                 await self.on_success.run()
-            elif self.status == TaskStatus.ERROR and self.on_failure is not None:
+            elif self.status == ActionStatus.ERROR and self.on_failure is not None:
                 await self.on_failure.run()
-
-    # def notify(self, message: str):
-    #     if self.parent:
-    #         asyncio.ensure_future(self.parent.notify(message, self.id))
 
     def find_in_job(self, path: str):
         if path.startswith(self.get_full_path()):
@@ -124,7 +120,7 @@ class Task(ABC):
             for socket in self.inputs + self.outputs:
                 if remaining_path.startswith(socket.id):
                     return socket.find_in_job(remaining_path)
-            raise Exception(f"Path {path} not found in task {self.id}")
+            raise Exception(f"Path {path} not found in action {self.id}")
         else:
             return self.parent.find(path)
 

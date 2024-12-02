@@ -1,8 +1,6 @@
 from enum import Enum
 from abc import ABC, abstractmethod
 
-# from tasks.task import Task # this creates a circular import
-
 
 class SocketType(Enum):
     Int = 0
@@ -31,7 +29,7 @@ class Socket(ABC):
         self.status = SocketStatus.PENDING
 
         self._value = None
-        self.parent = None  # this is a Task
+        self.parent = None  # this is an Action
 
     def to_dict(self):
         return {

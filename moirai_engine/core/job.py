@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime
 from enum import Enum
-from moirai_engine.tasks.task import Task
+from moirai_engine.actions.action import Action
 
 
 class JobStatus(Enum):
@@ -18,9 +18,9 @@ class Job:
         self.description: str = description
         self.status: JobStatus = JobStatus.PENDING
 
-        self.tasks: list[Task] = []
-        self.current_task = None
-        self.start_task_id: str = None
+        self.actions: list[Action] = []
+        self.current_action = None
+        self.start_action_id: str = None
 
         self.queued_at: datetime = datetime.now()
         self.started_at: datetime = None
@@ -32,12 +32,12 @@ class Job:
             "id": self.id,
             "label": self.label,
             "description": self.description,
-            "start_task_id": self.start_task_id,
+            "start_action_id": self.start_action_id,
             "status": self.status.name,
-            "current_task": (
-                self.current_task.get_full_path() if self.current_task else None
+            "current_action": (
+                self.current_action.get_full_path() if self.current_action else None
             ),
-            "tasks": [task.to_dict() for task in self.tasks],
+            "actions": [action.to_dict() for action in self.actions],
             "queued_at": (
                 self.queued_at.strftime("%Y-%m-%d %H:%M:%S") if self.queued_at else None
             ),
@@ -57,17 +57,17 @@ class Job:
     @classmethod
     def from_dict(cls, data):
         job = cls(data["id"], data["label"], data["description"])
-        job.start_task_id = data["start_task_id"]
+        job.start_action_id = data["start_action_id"]
         job.status = JobStatus[data["status"]]
         job.queued_at = datetime.strptime(data["queued_at"], "%Y-%m-%d %H:%M:%S")
         job.started_at = datetime.strptime(data["started_at"], "%Y-%m-%d %H:%M:%S")
         job.completed_at = datetime.strptime(data["completed_at"], "%Y-%m-%d %H:%M:%S")
-        job.tasks = [Task.from_dict(task_data) for task_data in data["tasks"]]
+        job.actions = [Action.from_dict(action_data) for action_data in data["action"]]
         return job
 
-    def add_task(self, task: Task):
-        task.parent = self
-        self.tasks.append(task)
+    def add_action(self, action: Action):
+        action.parent = self
+        self.actions.append(action)
 
     def get_full_path(self):
         return self.id
@@ -78,34 +78,34 @@ class Job:
             raise ValueError("Invalid path")
 
         if len(parts) == 2:
-            task_id = parts[1]
-            for task in self.tasks:
-                if task.id == task_id:
-                    return task
-            raise ValueError("Task not found")
+            action_id = parts[1]
+            for action in self.actions:
+                if action.id == action_id:
+                    return action
+            raise ValueError("Action not found")
         elif len(parts) == 4:
-            task_id = parts[1]
+            action_id = parts[1]
             attribute = parts[2]
             socket = parts[3]
 
-            for task in self.tasks:
-                if task.id == task_id:
+            for action in self.actions:
+                if action.id == action_id:
                     if attribute == "inputs":
-                        return task.get_input(socket)
+                        return action.get_input(socket)
                     elif attribute == "outputs":
-                        return task.get_output(socket)
+                        return action.get_output(socket)
                     else:
                         raise ValueError("Invalid attribute")
-            raise ValueError("Task not found")
+            raise ValueError("Action not found")
         else:
             raise ValueError("Invalid path format")
 
     async def run(self):
         self.started_at = datetime.now()
         self.notify(f"[Start] {self.label}")
-        if self.current_task is None:
-            self.current_task = self.find(self.start_task_id)
-        await self.current_task.run()
+        if self.current_action is None:
+            self.current_action = self.find(self.start_action_id)
+        await self.current_action.run()
         self.completed_at = datetime.now()
         self.notify(f"[End] {self.label}")
 
