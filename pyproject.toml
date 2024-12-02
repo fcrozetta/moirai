@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "moirai-engine"
 dynamic = ["version"]
-description = ''
+description = 'The job processing engine that powers ananke'
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -35,10 +35,10 @@ extra-dependencies = ["mypy>=1.0.0"]
 check = "mypy --install-types --non-interactive {args:moirai_engine tests}"
 
 [tool.hatch.build.targets.sdist]
-include = ["**/*.py", "README.md", "LICENSE.txt"]
+include = ["moirai_engine/**/*.py", "README.md", "LICENSE.txt"]
 
 [tool.hatch.build.targets.wheel]
-include = ["**/*.py", "README.md", "LICENSE.txt"]
+include = ["moirai_engine/**/*.py", "README.md", "LICENSE.txt"]
 
 [tool.coverage.run]
 source_pkgs = ["moirai_engine", "tests"]

@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 from enum import Enum
 from moirai_engine.tasks.task import Task
@@ -101,11 +102,13 @@ class Job:
 
     async def run(self):
         self.started_at = datetime.now()
+        self.notify(f"[Start] {self.label}")
         if self.current_task is None:
             self.current_task = self.find(self.start_task_id)
         await self.current_task.run()
         self.completed_at = datetime.now()
+        self.notify(f"[End] {self.label}")
 
-    async def notify(self, message: str, task_id: str = None):
+    def notify(self, message: str):
         if self.engine:
-            await self.engine.notify(message, self.id)
+            self.engine.notify(message=message, job_id=self.id)

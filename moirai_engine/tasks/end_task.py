@@ -8,5 +8,6 @@ class EndTask(Task):
         super().__init__(task_id, label, description)
         self.on_success = None
 
-    def execute(self):
+    async def execute(self):
+        self.notify("END TASK")
         self.status = TaskStatus.COMPLETED

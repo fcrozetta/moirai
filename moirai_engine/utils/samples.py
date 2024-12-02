@@ -26,10 +26,10 @@ def slow_hello_world():
     start.on_success = string
     string.on_success = sleep
     sleep.on_success = print_
+    print_.on_success = end
     print_.get_input("input_string").connect(
         string.get_output("output_string").get_full_path()
     )
-    print_.on_success = end
 
     job.start_task_id = f"{job_id}.start"
 
@@ -52,10 +52,10 @@ def hello_world():
     job.add_task(print_)
 
     start.on_success = print_
+    print_.on_success = end
     print_.get_input("input_string").connect(
         string.get_output("output_string").get_full_path()
     )
-    print_.on_success = end
 
     job.start_task_id = f"{job_id}.start"
 

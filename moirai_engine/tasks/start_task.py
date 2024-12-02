@@ -6,5 +6,5 @@ class StartTask(Task):
         super().__init__(id, label, description)
         self.is_targetable = False
 
-    def execute(self):
+    async def execute(self):
         self.status = TaskStatus.COMPLETED

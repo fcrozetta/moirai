@@ -84,19 +84,26 @@ class Task(ABC):
         self.outputs.append(socket)
         return self.outputs[-1]
 
+    def notify(self, message: str):
+        if self.parent:
+            self.parent.notify(message)
+
     async def run(self):
+        self.notify(f"[Start] Task: {self.get_full_path()}")
         if self.status == TaskStatus.PENDING:
-            await self.notify(f"Running task {self.label}")
             self.status = TaskStatus.RUNNING
+
             # ? will this cause a deadlock?
             await asyncio.gather(*[socket.resolve() for socket in self.inputs])
             self.preExecute()
             try:
-                self.execute()
+                await self.execute()
                 self.status = TaskStatus.COMPLETED
+                self.notify(f"[End] Task: {self.label}")
             except Exception as e:
                 self.status = TaskStatus.ERROR
-                await self.notify(f"Error in task {self.label}: {str(e)}")
+                self.notify(f"Error in task {self.label}: {str(e)}")
+                print(f"Error in task {self.label}: {str(e)}")
                 raise e  # ? Should we raise the exception here?
             self.postExecute()
             # ? Maybe The job should be responsible for running the on_success and on_failure tasks
@@ -105,9 +112,9 @@ class Task(ABC):
             elif self.status == TaskStatus.ERROR and self.on_failure is not None:
                 await self.on_failure.run()
 
-    async def notify(self, message: str):
-        if self.parent:
-            await self.parent.notify(message, self.id)
+    # def notify(self, message: str):
+    #     if self.parent:
+    #         asyncio.ensure_future(self.parent.notify(message, self.id))
 
     def find_in_job(self, path: str):
         if path.startswith(self.get_full_path()):
@@ -128,7 +135,7 @@ class Task(ABC):
         pass
 
     @abstractmethod
-    def execute(self, *args, **kwargs):
+    async def execute(self, *args, **kwargs):
         raise NotImplementedError
 
     def postExecute(self):

@@ -11,7 +11,7 @@ class StringTask(Task):
 
         self.create_output("output_string", "Output", SocketType.String)
 
-    def execute(self):
+    async def execute(self):
         input_string = self.get_input("input_string")
         output_string = self.get_output("output_string")
         output_string.set_value(input_string.get_value())

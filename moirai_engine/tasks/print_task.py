@@ -1,3 +1,4 @@
+import asyncio
 from moirai_engine.tasks.task import Task, TaskStatus
 from moirai_engine.sockets.socket import SocketType
 
@@ -8,8 +9,7 @@ class PrintTask(Task):
         input_1 = self.create_input("input_string", "Input", SocketType.String)
         input_1.allow_direct_input = True
 
-    def execute(self):
+    async def execute(self):
         input_string = self.get_input("input_string")
-        print(input_string.get_value())
-
+        self.notify(input_string.get_value())
         self.status = TaskStatus.COMPLETED
