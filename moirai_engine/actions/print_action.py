@@ -9,7 +9,7 @@ class PrintAction(Action):
         input_1 = self.create_input("input_string", "Input", SocketType.String)
         input_1.allow_direct_input = True
 
-    async def execute(self):
+    def execute(self):
         input_string = self.get_input("input_string")
         self.notify(input_string.get_value())
         self.status = ActionStatus.COMPLETED

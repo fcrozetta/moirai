@@ -8,6 +8,6 @@ class EndAction(Action):
         super().__init__(id, label, description)
         self.on_success = None
 
-    async def execute(self):
+    def execute(self):
         self.notify("END Action")
         self.status = ActionStatus.COMPLETED

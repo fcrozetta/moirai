@@ -6,5 +6,5 @@ class StartAction(Action):
         super().__init__(id, label, description)
         self.is_targetable = False
 
-    async def execute(self):
+    def execute(self):
         self.status = ActionStatus.COMPLETED

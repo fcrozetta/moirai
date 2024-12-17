@@ -7,10 +7,10 @@ class OutputSocket(Socket):
         self._value = None
         self.parent = parent
 
-    async def resolve(self):
+    def resolve(self):
         if self.status == SocketStatus.PENDING:
             self.status = SocketStatus.RESOLVING
-            await self.parent.run()  # parent is a Task node.
+            self.parent.run()
 
     def get_full_path(self):
         return super().get_full_path("outputs")

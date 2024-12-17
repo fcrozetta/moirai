@@ -1,4 +1,3 @@
-import asyncio
 from enum import Enum
 from abc import ABC, abstractmethod
 from moirai_engine.sockets.socket import SocketType
@@ -88,29 +87,28 @@ class Action(ABC):
         if self.parent:
             self.parent.notify(message)
 
-    async def run(self):
+    def run(self):
         self.notify(f"[Start] Action: {self.get_full_path()}")
         if self.status == ActionStatus.PENDING:
             self.status = ActionStatus.RUNNING
 
-            # ? will this cause a deadlock?
-            await asyncio.gather(*[socket.resolve() for socket in self.inputs])
+            for socket in self.inputs:
+                socket.resolve()
             self.preExecute()
             try:
-                await self.execute()
+                self.execute()
                 self.status = ActionStatus.COMPLETED
                 self.notify(f"[End] Action: {self.label}")
             except Exception as e:
                 self.status = ActionStatus.ERROR
                 self.notify(f"Error in action {self.label}: {str(e)}")
                 print(f"Error in action {self.label}: {str(e)}")
-                raise e  # ? Should we raise the exception here?
+                raise e
             self.postExecute()
-            # ? Maybe The job should be responsible for running the on_success and on_failure actions
             if self.status == ActionStatus.COMPLETED and self.on_success is not None:
-                await self.on_success.run()
+                self.on_success.run()
             elif self.status == ActionStatus.ERROR and self.on_failure is not None:
-                await self.on_failure.run()
+                self.on_failure.run()
 
     def find_in_job(self, path: str):
         if path.startswith(self.get_full_path()):
@@ -131,7 +129,7 @@ class Action(ABC):
         pass
 
     @abstractmethod
-    async def execute(self, *args, **kwargs):
+    def execute(self, *args, **kwargs):
         raise NotImplementedError
 
     def postExecute(self):

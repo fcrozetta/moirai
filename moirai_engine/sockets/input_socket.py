@@ -33,7 +33,7 @@ class InputSocket(Socket):
     def connect(self, source_path: str):
         self.source_full_path = source_path
 
-    async def resolve(self):
+    def resolve(self):
         if self.status == SocketStatus.PENDING:
             self.status = SocketStatus.RESOLVING
             source = self.parent.find_in_job(self.source_full_path)
@@ -42,7 +42,7 @@ class InputSocket(Socket):
                 raise Exception("Incompatible socket types")
             self.source = source
             if self.source is not None:
-                await self.source.resolve()
+                self.source.resolve()
                 self.set_value(self.source.get_value())
                 self.status = SocketStatus.RESOLVED
             else:

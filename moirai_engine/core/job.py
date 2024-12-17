@@ -100,12 +100,12 @@ class Job:
         else:
             raise ValueError("Invalid path format")
 
-    async def run(self):
+    def run(self):
         self.started_at = datetime.now()
         self.notify(f"[Start] {self.label}")
         if self.current_action is None:
             self.current_action = self.find(self.start_action_id)
-        await self.current_action.run()
+        self.current_action.run()
         self.completed_at = datetime.now()
         self.notify(f"[End] {self.label}")
 
