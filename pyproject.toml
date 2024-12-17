@@ -47,7 +47,7 @@ parallel = true
 omit = ["moirai_engine/__about__.py"]
 
 [tool.coverage.paths]
-moirai_engine = ["moirai_engine", "*/moirai-engine/moirai_engine"]
+moirai_engine = ["moirai_engine"]
 tests = ["tests", "*/moirai-engine/tests"]
 
 [tool.coverage.report]
