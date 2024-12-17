@@ -1,19 +1,23 @@
 import asyncio
 from typing import List
 from datetime import datetime
+from moirai_engine.core import job
 from moirai_engine.core.job import Job
 
 
 class Engine:
+    engine_id = "_moirai"
+
     def __init__(self, max_workers=4, listener: callable = None):
         self.job_queue = asyncio.Queue()
         self.is_running = False
         self.max_workers = max_workers
         self.tasks: List[asyncio.Task] = []
-        self.notification_listeners: dict[str, List[callable]] = {"_moirai": []}
+        self.notification_listeners: dict[str, List[callable]] = {self.engine_id: []}
+        # ! Notifications and history should become json objects, instead of strings
+        self.notification_history: dict[str, List[str]] = {}
 
-        if listener:
-            self.notification_listeners["_moirai"].append(listener)
+        self.add_listener(listener, self.engine_id)
 
     async def start(self):
         if not self.is_running:
@@ -52,13 +56,21 @@ class Engine:
         await self.job_queue.put(job)
         self.notify(f"[Queued] {job.label}")
 
-    def add_listener(self, listener: callable, job_id: str = "_moirai"):
+    def add_listener(self, listener: callable, job_id: str | None = None):
         """Add a new listener to job_id. If job_id not defined, read engine notifications"""
+        job_id = job_id or self.engine_id
+        if listener is None:
+            return
         if job_id not in self.notification_listeners:
             self.notification_listeners[job_id] = []
         self.notification_listeners[job_id].append(listener)
 
-    def notify(self, message: str, job_id: str = "_moirai"):
+    def get_notification_history(self, job_id: str | None = None) -> List[str]:
+        job_id = job_id or self.engine_id
+        return self.notification_history.get(job_id, [])
+
+    def notify(self, message: str, job_id: str | None = None):
+        job_id = job_id or self.engine_id
         system_message = (
             f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [{job_id}] {message}"
         )
@@ -66,3 +78,6 @@ class Engine:
             self.notification_listeners[job_id] = []
         for listener in self.notification_listeners[job_id]:
             asyncio.create_task(listener(system_message))
+        if job_id not in self.notification_history:
+            self.notification_history[job_id] = []
+        self.notification_history[job_id].append(system_message)

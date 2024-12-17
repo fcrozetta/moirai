@@ -8,15 +8,14 @@ async def notification_listener(notification):
 
 
 async def main():
-    engine = Engine(max_workers=4, listener=notification_listener)
+    engine = Engine(max_workers=4)
     await engine.start()
 
     # Create jobs
     job = slow_hello_world()
-    job2 = hello_world()
 
     # Add jobs to the engine
-    await engine.add_job(job, notification_listener)
+    await engine.add_job(job=job)
     # await engine.add_job(hello_world(), notification_listener)
     # await engine.add_job(job2)
     # await engine.add_job(hello_world())
@@ -35,6 +34,15 @@ async def main():
     # Let the engine run for a while
     await asyncio.sleep(2)
     # await engine.add_job(hello_world())
+
+    hist = engine.get_notification_history(job_id=job.id)
+    print("History:")
+    for h in hist:
+        print(h)
+    engine_hist = engine.get_notification_history(job_id="_moirai")
+    print("Engine History:")
+    for h in engine_hist:
+        print(h)
 
     await engine.stop()
 
