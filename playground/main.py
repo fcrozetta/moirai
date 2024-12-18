@@ -1,4 +1,3 @@
-import threading
 from moirai_engine.core.engine import Engine
 from moirai_engine.utils.samples import hello_world, slow_hello_world
 
@@ -18,8 +17,8 @@ def main():
     engine.add_job(job=job)
 
     # Adding a stress test, for fun
-    while True:
-        engine.add_job(job=slow_hello_world(), listener=notification_listener)
+    # while True:
+    #     engine.add_job(job=slow_hello_world(), listener=notification_listener)
 
     # # Let the engine run for a while
     # threading.Event().wait(2)

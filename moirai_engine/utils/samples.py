@@ -1,3 +1,7 @@
+"""
+This module contains sample jobs that can be used for testing purposes.
+"""
+
 from uuid import uuid4
 from moirai_engine.core.job import Job
 from moirai_engine.actions.start_action import StartAction
