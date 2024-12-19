@@ -10,6 +10,7 @@ class Engine:
 
     def __init__(self, max_workers=4, listener: callable = None):
         self.job_queue = Queue()
+        self.job_done = {}
         self.is_running = False
         self.max_workers = max_workers
         self.threads: List[threading.Thread] = []
@@ -41,11 +42,17 @@ class Engine:
         while self.is_running:
             job = self.job_queue.get()
             try:
+                self.notify(f"[Running] {job.label}", job_id=job.id)
                 job.run()
             except Exception as e:
                 print(f"Error in job {job.label}: {str(e)}")
                 self.notify(f"[Error] job_id:{job.label}.  err:{str(e)}")
             finally:
+                # !This will be an issue for running same job twice
+                self.job_done[job.id] = {
+                    "job": job,
+                    "logs": self.notification_history[job.id],
+                }
                 self.job_queue.task_done()
 
     def add_job(self, job: Job, listener: callable = None):
@@ -53,6 +60,7 @@ class Engine:
         self.add_listener(listener, job.id)
         self.job_queue.put(job)
         self.notify(f"[Queued] {job.label}")
+        self.notify(f"[Queued] {job.label}", job_id=job.id)
 
     def add_listener(self, listener: callable, job_id: str | None = None):
         """Add a new listener to job_id. If job_id not defined, read engine notifications"""

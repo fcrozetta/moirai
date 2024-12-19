@@ -65,9 +65,10 @@ class Job:
         job.actions = [Action.from_dict(action_data) for action_data in data["action"]]
         return job
 
-    def add_action(self, action: Action):
+    def add_action(self, action: Action) -> "Job":
         action.parent = self
         self.actions.append(action)
+        return self
 
     def get_full_path(self):
         return self.id
@@ -103,10 +104,13 @@ class Job:
     def run(self):
         self.started_at = datetime.now()
         self.notify(f"[Start] {self.label}")
+        # ? I believe it is a mistake to have the action call the next one directly.
+        # ? The job should be responsible for this.
         if self.current_action is None:
             self.current_action = self.find(self.start_action_id)
         self.current_action.run()
         self.completed_at = datetime.now()
+        self.status = JobStatus.COMPLETED  # How to handle other statuses?
         self.notify(f"[End] {self.label}")
 
     def notify(self, message: str):
