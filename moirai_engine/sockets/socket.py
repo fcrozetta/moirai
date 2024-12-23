@@ -64,3 +64,10 @@ class Socket(ABC):
 
     def get_full_path(self, intermediate_path: str = ""):
         return f"{self.parent.get_full_path()}.{intermediate_path}.{self.id}"
+
+    def notify(self, message: str, level=0):
+        if self.parent:
+            self.parent.notify(message=message, level=level)
+        else:
+            # FIXME: This should raise an exception
+            print(message)

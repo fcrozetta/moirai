@@ -36,7 +36,7 @@ class InputSocket(Socket):
     def resolve(self):
         if self.status == SocketStatus.PENDING:
             self.status = SocketStatus.RESOLVING
-            source = self.parent.find_in_job(self.source_full_path)
+            source = self.parent.find_in_workflow(self.source_full_path)
             if not self.is_compatible(source):
                 self.status = SocketStatus.ERROR
                 raise Exception("Incompatible socket types")

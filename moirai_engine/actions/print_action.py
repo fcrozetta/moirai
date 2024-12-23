@@ -11,5 +11,5 @@ class PrintAction(Action):
 
     def execute(self):
         input_string = self.get_input("input_string")
-        self.notify(input_string.get_value())
+        self.notify(input_string.get_value(), 0)
         self.status = ActionStatus.COMPLETED

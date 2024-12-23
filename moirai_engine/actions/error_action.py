@@ -13,5 +13,5 @@ class ErrorAction(Action):
         super().__init__(id, label, description)
 
     def execute(self):
-        self.notify("Forcing an error by dividing by zero")
+        self.notify("Forcing an error by dividing by zero", 3)
         1 / 0

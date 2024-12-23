@@ -9,5 +9,4 @@ class EndAction(Action):
         self.on_success = None
 
     def execute(self):
-        self.notify("END Action")
         self.status = ActionStatus.COMPLETED

@@ -2,21 +2,22 @@ import asyncio
 from datetime import datetime
 from enum import Enum
 from moirai_engine.actions.action import Action
+from moirai_engine.core.notification import InnerNotification, Notification
 
 
-class JobStatus(Enum):
+class WorkflowStatus(Enum):
     PENDING = "PENDING"
     RUNNING = "RUNNING"
     COMPLETED = "COMPLETED"
     ERROR = "ERROR"
 
 
-class Job:
-    def __init__(self, job_id: str, label: str, description: str = None):
-        self.id: str = job_id
+class Workflow:
+    def __init__(self, workflow_id: str, label: str, description: str = None):
+        self.id: str = workflow_id
         self.label: str = label
         self.description: str = description
-        self.status: JobStatus = JobStatus.PENDING
+        self.status: WorkflowStatus = WorkflowStatus.PENDING
 
         self.actions: list[Action] = []
         self.current_action = None
@@ -56,16 +57,20 @@ class Job:
 
     @classmethod
     def from_dict(cls, data):
-        job = cls(data["id"], data["label"], data["description"])
-        job.start_action_id = data["start_action_id"]
-        job.status = JobStatus[data["status"]]
-        job.queued_at = datetime.strptime(data["queued_at"], "%Y-%m-%d %H:%M:%S")
-        job.started_at = datetime.strptime(data["started_at"], "%Y-%m-%d %H:%M:%S")
-        job.completed_at = datetime.strptime(data["completed_at"], "%Y-%m-%d %H:%M:%S")
-        job.actions = [Action.from_dict(action_data) for action_data in data["action"]]
-        return job
+        workflow = cls(data["id"], data["label"], data["description"])
+        workflow.start_action_id = data["start_action_id"]
+        workflow.status = WorkflowStatus[data["status"]]
+        workflow.queued_at = datetime.strptime(data["queued_at"], "%Y-%m-%d %H:%M:%S")
+        workflow.started_at = datetime.strptime(data["started_at"], "%Y-%m-%d %H:%M:%S")
+        workflow.completed_at = datetime.strptime(
+            data["completed_at"], "%Y-%m-%d %H:%M:%S"
+        )
+        workflow.actions = [
+            Action.from_dict(action_data) for action_data in data["action"]
+        ]
+        return workflow
 
-    def add_action(self, action: Action) -> "Job":
+    def add_action(self, action: Action) -> "Workflow":
         action.parent = self
         self.actions.append(action)
         return self
@@ -103,16 +108,30 @@ class Job:
 
     def run(self):
         self.started_at = datetime.now()
-        self.notify(f"[Start] {self.label}")
+        self.notify(
+            message=InnerNotification(
+                component_id=self.id,
+                message={"message": f"[Start] {self.label}"},
+                level=0,
+            )
+        )
         # ? I believe it is a mistake to have the action call the next one directly.
-        # ? The job should be responsible for this.
+        # ? The workflow should be responsible for this.
         if self.current_action is None:
             self.current_action = self.find(self.start_action_id)
         self.current_action.run()
         self.completed_at = datetime.now()
-        self.status = JobStatus.COMPLETED  # How to handle other statuses?
-        self.notify(f"[End] {self.label}")
+        self.status = WorkflowStatus.COMPLETED  # How to handle other statuses?
+        self.notify(
+            message=InnerNotification(
+                component_id=self.id,
+                message={"message": f"[End] {self.label}"},
+                level=0,
+            )
+        )
 
-    def notify(self, message: str):
+    def notify(self, message: InnerNotification, level=0):
         if self.engine:
-            self.engine.notify(message=message, job_id=self.id)
+            self.engine.notify(workflow_id=self.id, level=level, message=message)
+        else:
+            print(message)

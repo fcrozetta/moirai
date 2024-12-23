@@ -1,5 +1,6 @@
 from enum import Enum
 from abc import ABC, abstractmethod
+from moirai_engine.core.notification import InnerNotification
 from moirai_engine.sockets.socket import SocketType
 from moirai_engine.sockets.input_socket import InputSocket
 from moirai_engine.sockets.output_socket import OutputSocket
@@ -83,12 +84,17 @@ class Action(ABC):
         self.outputs.append(socket)
         return self.outputs[-1]
 
-    def notify(self, message: str):
+    def notify(self, message: str, level=0):
+        inner_notif = InnerNotification(self.id, level, {"message": message})
         if self.parent:
-            self.parent.notify(message)
+            self.parent.notify(message=inner_notif, level=level)
+        else:
+            # FIXME: This should raise and error.
+            # TODO: Implement specific erors
+            print(inner_notif)
 
     def run(self):
-        self.notify(f"[Start] Action: {self.get_full_path()}")
+        self.notify(f"[Start] Action: {self.label}")
         if self.status == ActionStatus.PENDING:
             self.status = ActionStatus.RUNNING
 
@@ -100,6 +106,7 @@ class Action(ABC):
                 self.status = ActionStatus.COMPLETED
                 self.notify(f"[End] Action: {self.label}")
             except Exception as e:
+                # FIXME: Please improve this error message
                 self.status = ActionStatus.ERROR
                 self.notify(f"Error in action {self.label}: {str(e)}")
                 print(f"Error in action {self.label}: {str(e)}")
@@ -110,14 +117,14 @@ class Action(ABC):
             elif self.status == ActionStatus.ERROR and self.on_failure is not None:
                 self.on_failure.run()
 
-    def find_in_job(self, path: str):
+    def find_in_workflow(self, path: str):
         if path.startswith(self.get_full_path()):
             remaining_path = path[len(self.get_full_path()) :].lstrip(".")
             if not remaining_path:
                 return self
             for socket in self.inputs + self.outputs:
                 if remaining_path.startswith(socket.id):
-                    return socket.find_in_job(remaining_path)
+                    return socket.find_in_workflow(remaining_path)
             raise Exception(f"Path {path} not found in action {self.id}")
         else:
             return self.parent.find(path)
