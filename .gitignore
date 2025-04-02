@@ -57,3 +57,5 @@ dist/
 .env
 
 .idea/
+
+target/
