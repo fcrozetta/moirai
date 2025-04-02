@@ -1,54 +1,15 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["maturin>=1.8,<2.0"]
+build-backend = "maturin"
 
 [project]
-name = "moirai-engine"
-dynamic = ["version"]
-description = ''
-readme = "README.md"
-requires-python = ">=3.11"
-license = "MIT"
-keywords = []
-authors = [{ name = "Fernando Crozetta", email = "fernando@czetta.com" }]
+name = "moirai"
+requires-python = ">=3.8"
 classifiers = [
-  "Development Status :: 4 - Beta",
-  "Programming Language :: Python",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: Implementation :: CPython",
-  "Programming Language :: Python :: Implementation :: PyPy",
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = []
-
-[project.urls]
-Documentation = "https://github.com/fcrozetta/moirai#readme"
-Issues = "https://github.com/fcrozetta/moirai/issues"
-Source = "https://github.com/fcrozetta/moirai"
-
-[tool.hatch.version]
-path = "moirai_engine/__about__.py"
-
-[tool.hatch.envs.types]
-extra-dependencies = ["mypy>=1.0.0"]
-[tool.hatch.envs.types.scripts]
-check = "mypy --install-types --non-interactive {args:moirai_engine tests}"
-
-[tool.hatch.build.targets.sdist]
-include = ["**/*.py", "README.md", "LICENSE.txt"]
-
-[tool.hatch.build.targets.wheel]
-include = ["**/*.py", "README.md", "LICENSE.txt"]
-
-[tool.coverage.run]
-source_pkgs = ["moirai_engine", "tests"]
-branch = true
-parallel = true
-omit = ["moirai_engine/__about__.py"]
-
-[tool.coverage.paths]
-moirai_engine = ["moirai_engine", "*/moirai-engine/moirai_engine"]
-tests = ["tests", "*/moirai-engine/tests"]
-
-[tool.coverage.report]
-exclude_lines = ["no cov", "if __name__ == .__main__.:", "if TYPE_CHECKING:"]
+dynamic = ["version"]
+[tool.maturin]
+features = ["pyo3/extension-module"]
