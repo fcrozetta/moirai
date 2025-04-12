@@ -3,6 +3,8 @@ pub mod events;
 pub mod plugin;
 pub mod engine;
 pub mod system_plugin;
+#[cfg(test)]
+mod system_plugin_tests;
 
 use pyo3::prelude::*;
 

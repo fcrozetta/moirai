@@ -3,7 +3,7 @@ use serde_json::Value;
 // use std::collections::hash_map;
 // use pyo3::exceptions::socket::timeout;
 
-#[derive(Clone,Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum ParameterType {
     String,
@@ -52,7 +52,7 @@ impl Job {
         let start_nodes = self.nodes.iter()
             .filter(|n| n.plugin == "system" && n.action == "start").count();
 
-        if start_nodes != 0 {
+        if start_nodes != 1 {
             return Err(format!("Workflow must have exactly one Start node. found {}", start_nodes));
         }
 
