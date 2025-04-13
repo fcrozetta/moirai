@@ -256,4 +256,52 @@ mod tests {
         assert!(!system_plugin::is_primitive_node("system", "start"));
         assert!(!system_plugin::is_primitive_node("system", "end"));
     }
+
+    #[tokio::test]
+    async fn test_log_node() {
+        // Test with single string message
+        let mut inputs = HashMap::new();
+        inputs.insert("message".to_string(), json!("Hello, world!"));
+        inputs.insert("level".to_string(), json!("info"));
+        
+        let result = execute_action("log", inputs).await.unwrap();
+        assert!(result.is_empty()); // Log node returns empty output
+        
+        // Test with multiple messages as array
+        let mut inputs = HashMap::new();
+        inputs.insert("message".to_string(), json!(["Line 1", "Line 2", "Line 3"]));
+        inputs.insert("level".to_string(), json!("debug"));
+        
+        let result = execute_action("log", inputs).await.unwrap();
+        assert!(result.is_empty()); // Log node returns empty output
+        
+        // Test with different log levels
+        let mut inputs = HashMap::new();
+        inputs.insert("message".to_string(), json!("Warning message"));
+        inputs.insert("level".to_string(), json!("warning"));
+        
+        let result = execute_action("log", inputs).await.unwrap();
+        assert!(result.is_empty());
+        
+        let mut inputs = HashMap::new();
+        inputs.insert("message".to_string(), json!("Error message"));
+        inputs.insert("level".to_string(), json!("error"));
+        
+        let result = execute_action("log", inputs).await.unwrap();
+        assert!(result.is_empty());
+        
+        // Test with non-string input
+        let mut inputs = HashMap::new();
+        inputs.insert("message".to_string(), json!(42));
+        
+        let result = execute_action("log", inputs).await.unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_log_node_check() {
+        assert!(system_plugin::is_log_node("system", "log"));
+        assert!(!system_plugin::is_log_node("system", "start"));
+        assert!(!system_plugin::is_log_node("other", "log"));
+    }
 }

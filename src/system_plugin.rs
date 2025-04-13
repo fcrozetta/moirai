@@ -184,6 +184,37 @@ pub fn register_system_plugin(registry: &mut PluginRegistry) -> Result<(), Strin
         },
     );
 
+    // Log Node
+    actions.insert(
+        "log".to_string(),
+        ActionDefinition {
+            name: "log".to_string(),
+            description: "Log one or more messages".to_string(),
+            entrypoint: "internal:log".to_string(),
+            inputs: vec![
+                ParameterDefinition {
+                    id: "message".to_string(),
+                    name: "Message".to_string(),
+                    param_type: ParameterType::String,
+                    description: Some("Message to log (can be multiple)".to_string()),
+                    required: true,
+                    multiple: true,
+                    default: Some(Value::String("".to_string())),
+                },
+                ParameterDefinition {
+                    id: "level".to_string(),
+                    name: "Log Level".to_string(),
+                    param_type: ParameterType::String,
+                    description: Some("Log level (info, warning, error, debug)".to_string()),
+                    required: false,
+                    multiple: false,
+                    default: Some(Value::String("info".to_string())),
+                },
+            ],
+            outputs: vec![],
+        },
+    );
+
     // Create System plugin
     let plugin = Plugin {
         id:"system:system".to_string(),
@@ -302,6 +333,41 @@ pub async fn execute_system_action(
             outputs.insert("output".to_string(), Value::Null);
             Ok(outputs)
         },
+        "log" => {
+            // Get messages
+            let messages = match inputs.get("message") {
+                Some(Value::Array(messages)) => {
+                    // Convert all messages to strings
+                    let messages: Vec<String> = messages.iter()
+                        .map(|m| match m {
+                            Value::String(s) => s.clone(),
+                            _ => format!("{:?}", m),
+                        })
+                        .collect();
+                    messages.join("\n")
+                },
+                Some(Value::String(message)) => message.clone(),
+                Some(other) => format!("{:?}", other),
+                None => "".to_string(),
+            };
+
+            // Get log level (default to info)
+            let level = match inputs.get("level") {
+                Some(Value::String(level)) => level.clone(),
+                _ => "info".to_string(),
+            };
+
+            // Print to console (for now)
+            match level.to_lowercase().as_str() {
+                "error" => eprintln!("ERROR: {}", messages),
+                "warning" | "warn" => println!("WARNING: {}", messages),
+                "debug" => println!("DEBUG: {}", messages),
+                _ => println!("INFO: {}", messages),
+            }
+
+            // Return empty output
+            Ok(HashMap::new())
+        },
         _ => Err(format!("Unknown system action {}", action)),
     }
 }
@@ -315,7 +381,8 @@ pub fn is_system_node(plugin: &str, action: &str) -> bool {
         action == "number" ||
         action == "boolean" ||
         action == "object" ||
-        action == "null"
+        action == "null" ||
+        action == "log"
     )
 }
 
@@ -338,4 +405,9 @@ pub fn is_primitive_node(plugin: &str, action: &str) -> bool {
         action == "object" ||
         action == "null"
     )
+}
+
+// Check if node is a log node
+pub fn is_log_node(plugin: &str, action: &str) -> bool {
+    plugin == "system" && action == "log"
 }
