@@ -6,19 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 name = "moirai"
-crate-type = ["cdylib", "rlib"]
-
-[[bin]]
-name = "test_workflow"
-path = "src/engine/bin/test_workflow.rs"
-
-[[bin]]
-name = "primitives_test"
-path = "src/engine/bin/primitives_test.rs"
-
-[[bin]]
-name = "log_test"
-path = "src/engine/bin/log_test.rs"
+crate-type = ["rlib"]
 
 [dependencies]
 chrono = {version = "0.4.40", features = ["serde"] }

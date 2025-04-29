@@ -414,7 +414,15 @@ impl JobManager {
         node_data: &HashMap<String, HashMap<String, Value>>,
     ) -> HashMap<String, Value> {
         let mut inputs = HashMap::new();
-        
+        // Include static parameters (e.g., primitive node values)
+        if let Some(node) = job.nodes.iter().find(|n| n.id == node_id) {
+            if let Some(obj) = node.static_parameters.as_object() {
+                for (k, v) in obj {
+                    inputs.insert(k.clone(), v.clone());
+                }
+            }
+        }
+
         // Find edges to this node
         for edge in &job.edges {
             if edge.to == node_id {
@@ -429,7 +437,7 @@ impl JobManager {
                 }
             }
         }
-        
+
         inputs
     }
     

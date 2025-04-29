@@ -173,15 +173,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_null_primitive() {
-        // Test null node - should always return null
-        let inputs = HashMap::new();
-        
-        let result = execute_action("null", inputs).await.unwrap();
-        assert_eq!(result.get("output"), Some(&Value::Null));
-    }
-
-    #[tokio::test]
     async fn test_start_end_nodes() {
         // Test start node - should return input as is
         let mut inputs = HashMap::new();
@@ -213,7 +204,6 @@ mod tests {
         assert!(plugin.actions.contains_key("number"));
         assert!(plugin.actions.contains_key("boolean"));
         assert!(plugin.actions.contains_key("object"));
-        assert!(plugin.actions.contains_key("null"));
         
         // Check parameter types
         let string_action = plugin.actions.get("string").unwrap();
@@ -237,7 +227,6 @@ mod tests {
         assert!(system_plugin::is_system_node("system", "number"));
         assert!(system_plugin::is_system_node("system", "boolean"));
         assert!(system_plugin::is_system_node("system", "object"));
-        assert!(system_plugin::is_system_node("system", "null"));
         
         assert!(!system_plugin::is_system_node("other", "start"));
         assert!(!system_plugin::is_system_node("system", "unknown"));
@@ -252,7 +241,6 @@ mod tests {
         assert!(system_plugin::is_primitive_node("system", "number"));
         assert!(system_plugin::is_primitive_node("system", "boolean"));
         assert!(system_plugin::is_primitive_node("system", "object"));
-        assert!(system_plugin::is_primitive_node("system", "null"));
         assert!(!system_plugin::is_primitive_node("system", "start"));
         assert!(!system_plugin::is_primitive_node("system", "end"));
     }
