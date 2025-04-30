@@ -256,22 +256,25 @@ impl JobManager {
         if start_nodes.is_empty() {
             return Err("No start nodes found in workflow".to_string());
         }
-        
-        // Set start nodes to Ready
-        for start_id in &start_nodes {
-            if let Some(node) = nodes.get_mut(start_id) {
-                node.status = NodeStatus::Ready;
-                
-                // Emit event
-                let _ = event_bus.publish(EventType::NodeStatusChanged {
-                    job_id: job_id.to_string(),
-                    node_id: start_id.clone(),
-                    old_status: NodeStatus::Pending,
-                    new_status: NodeStatus::Ready,
-                    timestamp: Utc::now(),
-                });
-            }
+
+        if start_nodes.len() > 1 {
+            return Err("Multiple start nodes found in workflow".to_string());
         }
+        
+        // Set the first start node to Ready
+        let start_id = start_nodes[0].clone();
+        if let Some(node) = nodes.get_mut(&start_id) {
+            node.status = NodeStatus::Ready;
+        }
+        
+        // Emit event
+        let _ = event_bus.publish(EventType::NodeStatusChanged {
+            job_id: job_id.to_string(),
+            node_id: start_id.clone(),
+            old_status: NodeStatus::Pending,
+            new_status: NodeStatus::Ready,
+            timestamp: Utc::now(),
+        });
         
         // Store node data (outputs)
         let mut node_data: HashMap<String, HashMap<String, Value>> = HashMap::new();
@@ -588,6 +591,7 @@ impl JobManager {
     
     /// Check if there are any pending nodes
     fn has_pending_nodes(nodes: &HashMap<String, Node>) -> bool {
+        // TODO: This will trigger something broke, when we have two paths.
         nodes.values().any(|n| n.status == NodeStatus::Pending)
     }
     
