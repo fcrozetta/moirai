@@ -124,7 +124,8 @@ A high-level design and separation of concerns for the **Moirai** workflow engin
 ## Plugin system
 
 ### PLugin structure
-```
+
+``` text
 myplugin/
 │
 ├── plugin.json               # Manifest file (always at the root)
@@ -151,11 +152,12 @@ myplugin/
 │   └── ...
 │
 └── README.md                 # Plugin documentation
-````
+```
 
 ### Data type definitions
 
 #### number type
+
 ```json
 {
   "type_fqdn": "sys:number",
