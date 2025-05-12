@@ -2,6 +2,7 @@ use serde::Deserialize;
 use std::{collections::HashMap, fs, path::Path};
 use thiserror::Error;
 
+/// Moirai Configuration
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub version: String,
