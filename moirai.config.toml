@@ -1,0 +1,17 @@
+# Moirai Engine Configuration
+version = "1.0.0"           # Config file format version
+
+[engine]
+engine_version = "0.1.0"    # Required engine version to run this setup
+# Optional: Path to a workflow file (for CLI/testing/dev tooling)
+workflow = "workflow.json"
+
+# Optional engine-level execution parameters
+concurrency = 4
+timeout_seconds = 60
+
+[plugins]
+
+# Core system plugin
+[plugins.sys]
+path = "./plugins/sys"

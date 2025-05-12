@@ -1,6 +1,9 @@
 # moirai
 
-> WIP
+> **WIP**: This is still a work in progress.
+
+## TODO:
+- plugin.json example
 
 Moirai is a workflow engine to be used in python application (ananke). 
 
@@ -12,9 +15,116 @@ There are two main principles that I looked for in other engines, but couldn't f
 
 As a side note: I really want any dev with any language to be able to build plugins. Initially as a virtual environment, but later i plan to use docker as environment.
 
+
+## Moirai Architecture Overview
+
+A high-level design and separation of concerns for the **Moirai** workflow engine. This document focuses on internal components, their responsibilities, and how they interact.
+
+---
+
+### 1. Configuration Loader
+
+* **Reads** `moirai.config.toml` on startup
+* **Parses** engine settings and plugin declarations
+* **Provides** a config object to all other components
+* **Optional**: watches for changes and triggers reloads
+
+---
+
+### 2. Plugin Manager
+
+* **Responsibilities**:
+
+  * Discover local and Git-based plugins as declared in config
+  * Validate each `plugin.json` manifest
+  * Load and parse `types/*.json` and `nodes/*.json` into memory
+  * Maintain a registry: `HashMap<plugin_fqdn, Plugin>`
+  * Handle install/remove operations (update config, clone/delete folders)
+
+---
+
+### 3. Workflow Validator
+
+* **Responsibilities**:
+
+  * Validate workflow definitions (if used)
+  * Ensure all referenced `node_fqdn` and `type_fqdn` exist in loaded plugins
+  * Check node I/O schemas: required inputs, type compatibility
+  * Detect graph errors: missing nodes, broken edges, cycles in non-flow nodes
+  * Provide clear error messages for misconfigurations
+
+---
+
+### 4. Engine Core
+
+* **Responsibilities**:
+
+  * Provide `start()` and `stop()` methods for the runtime
+  * Accept `run_workflow(workflow_definition_or_id)` calls via library or CLI
+  * Schedule node execution respecting dependency order and parallelism limits
+  * Enforce timeouts and failure policies
+  * Coordinate between Plugin Manager, Node Executor, and Logging
+
+---
+
+### 5. Node Executor
+
+* **Responsibilities**:
+
+  * Given a `NodeSpec` and input values, launch the node process:
+
+    * Use the plugin’s declared `execution` settings (language, method, entrypoint)
+  * Stream stdout as NDJSON events (`log`, `progress`, `output`, `error`)
+  * Parse and dispatch events immediately
+  * Handle subprocess lifecycle: kill on timeout, propagate failures
+  * Return an in-memory `NodeResult` object to the Engine Core
+
+---
+
+### 6. Logging & Transient Storage
+
+* **Responsibilities**:
+
+  * Receive streaming events from Node Executor
+  * Stream events to console/UI in real time
+  * Optionally dump raw NDJSON to `runs/<run_id>/` for debugging
+  * Do *not* persist long-term (Ananke handles durable storage)
+
+---
+
+### 7. Separation of Concerns
+
+| Module               | Primary Role                                           |
+| -------------------- | ------------------------------------------------------ |
+| Configuration Loader | Load and watch config                                  |
+| Plugin Manager       | Discover, validate, and register plugins               |
+| Workflow Validator   | Static validation of workflows                         |
+| Engine Core          | Orchestrate node execution, scheduling, error handling |
+| Node Executor        | Launch and monitor node processes                      |
+| Logging              | Real-time streaming and transient storage of events    |
+
+---
+
+### 8. Next Design Topics
+
+* **Scheduler Integration**: where cron/webhooks live (Ananke)
+* **Artifact Management**: per-run directories, cleanup policy
+* **Extensible Execution Backends**: MQ or HTTP for advanced nodes
+* **Testing & Development Tools**: `moirai-dev`, schema linting, mock runner
+
+---
+
+
+
+## Concepts
+
+- Moirai focus is the execution engine, and therefore won't focus in schedulers, webhooks, or CLI triggers
+- Files are being used for configurations and plugins, but may be changed later
+
 ## Plugin system
 
 ### PLugin structure
+```
 myplugin/
 │
 ├── plugin.json               # Manifest file (always at the root)
@@ -41,6 +151,7 @@ myplugin/
 │   └── ...
 │
 └── README.md                 # Plugin documentation
+````
 
 ### Data type definitions
 
