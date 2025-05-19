@@ -45,7 +45,7 @@ pub struct NodeSpec {
     pub metadata: NodeMetadata,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct IOField {
     pub name: String,
     pub r#type: String,
@@ -53,7 +53,7 @@ pub struct IOField {
     pub required: bool,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct NodeMetadata {
     pub display_name: String,
     pub description: String,

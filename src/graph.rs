@@ -294,3 +294,127 @@ impl Graph {
 
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::plugin_manager::{PluginManager};
+    use crate::config_loader::PluginSource;
+    use crate::workflow_validator::{WorkflowDefinition, NodeInstance};
+    use crate::specs::EdgeDefinition;
+    use serde_json::json;
+    use tempfile::TempDir;
+    use std::{collections::HashMap, fs};
+
+    fn make_temp_mysys_plugin() -> (TempDir, PluginManager) {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("mysys");
+        fs::create_dir_all(root.join("nodes")).unwrap();
+
+        // plugin.json
+        fs::write(
+            root.join("plugin.json"),
+            json!({
+                "plugin_fqdn": "mysys",
+                "version": "1.0.0",
+                "metadata": null,
+                "types": [],
+                "nodes": ["nodes/n1.json", "nodes/n2.json"]
+            })
+            .to_string(),
+        )
+        .unwrap();
+
+        // nodes/n1.json and nodes/n2.json (primitive specs)
+        for name in &["n1", "n2"] {
+            fs::write(
+                root.join("nodes").join(format!("{}.json", name)),
+                json!({
+                    "type": "primitive",
+                    "node_fqdn": format!("mysys:{}", name),
+                    "plugin_version": "1.0.0",
+                    "node_version":   "1.0.0",
+                    "entrypoint":     null,
+                    "inputs":         [],
+                    "outputs":        [],
+                    "metadata": {
+                        "display_name": name.to_uppercase(),
+                        "description": format!("Test node {}", name),
+                        "author": null,
+                        "created": null,
+                        "tags": null,
+                        "icon": null
+                    }
+                })
+                .to_string(),
+            )
+            .unwrap();
+        }
+
+        // Load into PluginManager
+        let mut pm = PluginManager::new();
+        let mut specs = HashMap::new();
+        specs.insert(
+            "mysys".to_string(),
+            PluginSource {
+                path: Some(root.to_string_lossy().to_string()),
+                git:  None,
+                rev:  None,
+            },
+        );
+        pm.load_from_paths(&specs).unwrap();
+        (tmp, pm)
+    }
+
+    #[test]
+    fn graph_from_definition_basic_control_flow() {
+        let (_tmp_dir, pm) = make_temp_mysys_plugin();
+
+        // Build a WorkflowDefinition: n1 --__success__--> n2
+        let def = WorkflowDefinition {
+            version: "1.0".into(),
+            name:    "wf".into(),
+            metadata: None,
+            nodes: vec![
+                NodeInstance {
+                    id:         "n1".into(),
+                    node_fqdn:  "mysys:n1".into(),
+                    inputs:     None,
+                    value:      Some(json!("hello")),
+                },
+                NodeInstance {
+                    id:         "n2".into(),
+                    node_fqdn:  "mysys:n2".into(),
+                    inputs:     None,
+                    value:      None,
+                },
+            ],
+            edges: vec![
+                EdgeDefinition {
+                    from_node:   "n1".into(),
+                    from_output: "__success__".into(),
+                    to_node:     "n2".into(),
+                    to_input:    "__input__".into(),
+                },
+            ],
+        };
+
+        // Build the graph
+        let graph = Graph::from_definition(&def, &pm).expect("graph build failed");
+
+        // We should have both nodes...
+        assert_eq!(graph.nodes.len(), 2);
+        assert!(graph.nodes.contains_key("n1"));
+        assert!(graph.nodes.contains_key("n2"));
+
+        // ... no data edges ...
+        assert!(graph.data_edges.is_empty());
+
+        // ... and exactly one control edge
+        let key = ("n1".to_string(), "__success__".to_string());
+        assert_eq!(
+            graph.control_edges.get(&key).unwrap(),
+            "n2"
+        );
+    }
+}
