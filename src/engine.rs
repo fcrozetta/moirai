@@ -1,7 +1,8 @@
 use crate::{
     config_loader::{load_config, Config, ConfigError},
+    graph::{Graph, Status, NodeState},
     plugin_manager::{PluginError, PluginManager},
-    specs::{EdgeDefinition, NodeInstance},
+    specs::{EdgeDefinition, NodeInstance, NodeSpec},
     workflow_validator::{validate_workflow_file, WorkflowDefinition, WorkflowError},
 };
 
@@ -37,7 +38,6 @@ impl Engine {
     pub fn new(
         config_path: impl AsRef<Path>,
     ) -> Result<(Self, mpsc::UnboundedReceiver<EngineEvent>), EngineError> {
-
         // load COnfig
         let config = load_config(config_path)?;
         // load plugins
@@ -46,7 +46,7 @@ impl Engine {
         pm.load_from_paths(&config.plugins)?;
 
         // create event channel
-        let (tx,rx) = mpsc::unbounded_channel();
+        let (tx, rx) = mpsc::unbounded_channel();
         Ok((
             Engine {
                 config: Arc::new(config),
@@ -54,14 +54,14 @@ impl Engine {
                 queue: Arc::new(Mutex::new(Vec::new())),
                 workers: Vec::new(),
                 event_tx: tx,
-                cancels:Arc::new(Mutex::new(Default::default())),
+                cancels: Arc::new(Mutex::new(Default::default())),
             },
             rx,
         ))
     }
 
     /// Start a fixed set of worker threads that will process the queue
-    pub fn start(&mut self, worker_count:usize) {
+    pub fn start(&mut self, worker_count: usize) {
         for _ in 0..worker_count {
             let queue = Arc::clone(&self.queue);
             let plugins = Arc::clone(&self.plugins);
@@ -79,34 +79,52 @@ impl Engine {
                     if let Some(path) = workflow_path {
                         // TODO: This should be an UUID
                         let wf_id = path.clone();
-                        
+
                         // Create cancel channel
                         let (cancel_tx, mut cancel_rx) = oneshot::channel();
                         cancels.lock().unwrap().insert(wf_id.clone(), cancel_tx);
 
-                        let _ = event_tx.send(EngineEvent::WorkflowStarted { workflow_id: wf_id.clone() });
+                        let _ = event_tx.send(EngineEvent::WorkflowStarted {
+                            workflow_id: wf_id.clone(),
+                        });
 
                         // Check cancel before validation
                         // TODO: I modified this to pass the compilations. May break on execution
                         if let Ok(_) = cancel_rx.try_recv() {
-                            let _ = event_tx.send(EngineEvent::WorkflowFinished { workflow_id: wf_id.clone(), is_success: false });
+                            let _ = event_tx.send(EngineEvent::WorkflowFinished {
+                                workflow_id: wf_id.clone(),
+                                is_success: false,
+                            });
                             continue;
                         };
 
                         // validate
-                        let plugins_lock = plugins.lock().unwrap();
-                        match validate_workflow_file(&Path::new(&path), &*config, &*plugins_lock) {
+                        match validate_workflow_file(&Path::new(&path), &config, &plugins.lock().unwrap()) {
                             Err(e) => {
-                                let _ = event_tx.send(EngineEvent::WorkflowFinished { workflow_id: wf_id.clone(), is_success: false });
+                                let _ = event_tx.send(EngineEvent::WorkflowFinished {
+                                    workflow_id: wf_id.clone(),
+                                    is_success: false,
+                                });
                                 // TODO: Improve logs when workflow fail validation
                                 continue;
-                            },
+                            }
 
                             Ok(definition) => {
-                                // TODO: Proceed with execution
-                                // Before each node execution, check for cancellation
-                                
-                                
+                                // Build graph
+                                let plugin_mgr = plugins.lock().unwrap();
+                                let mut graph = match Graph::from_definition(&definition, &*plugin_mgr) {
+                                    Ok(g) => g,
+                                    Err(_) => {
+                                        let _ = event_tx.send(EngineEvent::WorkflowFinished {
+                                            workflow_id: wf_id.clone(),
+                                            is_success: false,
+                                        });
+                                        continue;
+                                    }
+                                };
+                                // Execute graph.
+                                // ! This should be where the magic happens!
+                                graph.execute(wf_id.clone(), cancel_rx, event_tx.clone());
                             }
                         }
                     } else {
@@ -125,7 +143,7 @@ impl Engine {
         if let Some(tx) = cancels.remove(workflow_id) {
             let _ = tx.send(());
             true
-        }else{
+        } else {
             false
         }
     }
@@ -140,10 +158,11 @@ impl Engine {
             let _ = handle.join();
         }
 
-        let _ = self.event_tx.send(EngineEvent::EngineMessage { level: "info".into(), message: "Engine Shutdown complete".into() });
-
+        let _ = self.event_tx.send(EngineEvent::EngineMessage {
+            level: "info".into(),
+            message: "Engine Shutdown complete".into(),
+        });
     }
-
 }
 
 /// Handle to control a running workflow

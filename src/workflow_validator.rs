@@ -1,21 +1,11 @@
+use crate::specs::EdgeDefinition;
 use crate::config_loader::Config;
 use crate::plugin_manager::PluginManager;
 use serde::Deserialize;
-use std::{collections::{HashMap, HashSet}, fs, path::Path};
+use std::{collections::{HashMap, HashSet}, fs::{read_to_string}, path::Path};
 use thiserror::Error;
 
-// Errors during workflow validation
-#[derive(Debug, Error)]
-pub enum WorkflowError {
-    #[error("Failed to read workflow file '{0}': {1}")]
-    ReadFile(String, #[source] std::io::Error),
 
-    #[error("Failed to parse workflow JSON '{0}': {1}")]
-    ParseJson(String, #[source] serde_json::Error),
-
-    #[error("Validation error'{0}'")]
-    Validation(String),
-}
 
 /// Top level workflow definition loaded from JSON
 #[derive(Debug, Deserialize)]
@@ -42,40 +32,36 @@ pub struct NodeInstance {
     pub id: String,
     pub node_fqdn: String,
 
-    // TODO: Maybe this have to change if new primitive types are added?
+    /// Only action nodes have inputs
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inputs: Option<HashMap<String, serde_json::Value>>,
+
     /// Only primitive nodes have a literal value
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub value: Option<serde_json::Value>,
 }
 
-/// A directed connection between nodes
-#[derive(Debug, Deserialize)]
-pub struct EdgeDefinition {
-    pub from_node: String,
-    pub from_output: String,
-    pub to_node: String,
-    pub to_input: String,
-}
-
 /// Validates a workflow against loaded plugins and node/type specs
-pub fn validate_workflow_file<P: AsRef<Path>>(
-    path:P,
+pub fn validate_workflow_file(
+    path:&Path,
     config: &Config,
     plugins: &PluginManager
 ) -> Result<WorkflowDefinition, WorkflowError> {
-    let path_str = path.as_ref().display().to_string();
-    let json_str = fs::read_to_string(&path)
-        .map_err(|e| WorkflowError::ReadFile(path_str.clone(), e))?;
-    let wf: WorkflowDefinition = serde_json::from_str(&json_str)
-        .map_err(|e| WorkflowError::ParseJson(path_str.clone(), e))?;
+
+    // *1. Structural check
+    validate_structure(path).map_err(WorkflowError::Structure)?;
+
+    // *2.Parse json into definition
+    let s = read_to_string(path)?;
+    let wf: WorkflowDefinition = serde_json::from_str(&s)?;
 
     // TODO: I think 1.0 should not be fixed here...
-    // * 1. Version
+    // *3. Version
     if wf.version != "1.0" {
         return Err(WorkflowError::Validation(format!("Unsupported workflow version: {}", wf.version)));
     }
 
-    // * 2. Unique IDs
+    // *4. Unique IDs
     let mut ids= HashSet::new();
     for node in &wf.nodes {
         if !ids.insert(&node.id){
@@ -83,7 +69,7 @@ pub fn validate_workflow_file<P: AsRef<Path>>(
         }
     }
 
-    // * 3. Edge references
+    // *5. Edge references
     for edge in &wf.edges {
         if !ids.contains(&edge.from_node){
             return Err(WorkflowError::Validation(format!("Edge from unknown node: {}", edge.from_node)));
@@ -94,7 +80,7 @@ pub fn validate_workflow_file<P: AsRef<Path>>(
         }
     }
 
-    // * 4. FQDN exist in plugins (aka: plugin is installed)
+    // *6. FQDN exist in plugins (aka: plugin is installed)
     for node in &wf.nodes {
         let parts:Vec<&str> = node.node_fqdn.split(":").collect();
         if parts.len() != 2 {
@@ -107,7 +93,7 @@ pub fn validate_workflow_file<P: AsRef<Path>>(
         // TODO: Verify node_fqdn in plugin.manifest.nodes?
     }
 
-    // * 5. Additional checks
+    // *7. Additional checks
     // TODO: primitive nodes with value must be of correct type
     // TODO: Edges wiring ensures only data to data and flow to flow edges
 
@@ -117,151 +103,312 @@ pub fn validate_workflow_file<P: AsRef<Path>>(
 }
 
 
+
+/// Light structural validation:
+/// Checks wiring and basic shapes,
+/// but *not* NodeSpecs or types
+pub fn validate_structure(path: &Path) -> Result<(), StructureError> {
+    // *1. Read and parse JSON
+    let s = std::fs::read_to_string(path)?;
+    let def: WorkflowDefinition = serde_json::from_str(&s)?;
+
+    // // *2. Version check
+    // if def.version != "1.0" {
+    //     return Err(StructureError::Version(def.version.clone()));
+    // }
+
+    // *3. Exactly one sys:start
+    let start_count = def.nodes
+        .iter()
+        .filter(|n| n.node_fqdn == "sys:start")
+        .count();
+    if start_count != 1 {
+        return Err(StructureError::StartNodeCount(start_count));
+    }
+
+    // *4. Build set of declared IDs
+    let ids: HashSet<&String> = def.nodes.iter().map(|n| &n.id).collect();
+
+    // *5. Validate each edge
+    for edge in &def.edges {
+        if !ids.contains(&edge.from_node) {
+            return Err(StructureError::MissingNode(edge.from_node.clone()));
+        }
+        if !ids.contains(&edge.to_node) {
+            return Err(StructureError::MissingNode(edge.to_node.clone()));
+        }
+
+        if edge.from_output.trim().is_empty() || edge.to_input.trim().is_empty() {
+            return Err(StructureError::EmptyPort);
+        }
+    }
+    Ok(())
+}
+
+// Errors produced by light (structural) validator
+#[derive(Debug, Error)]
+pub enum StructureError {
+    #[error("I/O error reading workflow file: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("Failed to parse workflow JSON: {0}")]
+    Json(#[from] serde_json::Error),
+
+    #[error("Unsupported workflow version: `{0}`, expected `1.0`")]
+    Version(String),
+
+    #[error("Expected exactly one `sys:start` node, found: `{0}`")]
+    StartNodeCount(usize),
+
+    #[error("Edge references unknown node `{0}`")]
+    MissingNode(String),
+
+    #[error("Edge has an empty port name (from_output or to_input)")]
+    EmptyPort,
+}
+
+// Errors during workflow validation
+#[derive(Debug, Error)]
+pub enum WorkflowError {
+
+    #[error(transparent)]
+    Structure(#[from] StructureError),
+
+    #[error("I/O error reading workflow JSON: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("Failed to parse workflow JSON {0}")]
+    Json(#[from] serde_json::Error),
+
+    #[error("Validation error: '{0}'")]
+    Validation(String),
+
+    #[error("No `sys:start` node found in workflow")]
+    MissingStartNode,
+
+    #[error("Could Not Execute the Node")]
+    Execution,
+
+    // TODO: add errors for Plugin-aware errors, ports not found, type mismatch, etc.
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config_loader::{Config,EngineConfig, PluginSource};
+    use crate::config_loader::{Config,EngineConfig};
     use crate::plugin_manager::PluginManager;
-    use std::collections::HashMap;
-    use std::io::Write;
+    use std::{collections::HashMap,io::Write};
     use tempfile::NamedTempFile;
 
     fn make_config() -> Config {
         Config {
-            version: "1.0.0".to_string(),
-            engine: EngineConfig { engine_version: "0.1.0".to_string(), workflow: None, concurrency: None, timeout_seconds: None },
+            version: "1.0.0".into(),
+            engine: EngineConfig { 
+                engine_version: "0.1.0".into(), 
+                workflow: None, 
+                concurrency: None, 
+                timeout_seconds: None 
+            },
             plugins: HashMap::new()
         }
     }
 
     #[test]
-    fn version_mismatch() {
+    fn struct_missing_start() {
         let mut file = NamedTempFile::new().unwrap();
-        write!(
-            file,
-            r#"{{
-                "version": "2.0",
-                "name": "wf",
-                    "nodes": [],
-                    "edges": []
-            }}"#
-        ).unwrap();
-
-        let cfg = make_config();
-        let pm = PluginManager::new();
-        let err = validate_workflow_file(file.path(), &cfg, &pm).unwrap_err();
-        assert!(
-            format!("{}",err).contains("Unsupported workflow version: 2.0"),
-            "got error: {}",
-            err
-        )
-    }
-
-    #[test]
-    fn duplicate_node_ids() {
-        let mut file = NamedTempFile::new().unwrap();
-
         write!(
             file,
             r#"{{
                 "version": "1.0",
                 "name": "wf",
                 "nodes": [
-                    {{ "id": "n1", "node_fqdn": "sys:start" }},
-                    {{ "id": "n1", "node_fqdn": "sys:start" }}
+                    {{ "id": "n1", "node_fqdn": "sys:log", "inputs": {{}} }}
                 ],
                 "edges": []
-            }}"#,
+            }}"#
+        ).unwrap();
+
+        let err = validate_structure(file.path()).unwrap_err();
+        match err {
+            StructureError::StartNodeCount(cnt) if cnt == 0 => {},
+            _=> panic!("Expected StartNodeCount(0), got {:?}", err),
+        }
+    }
+
+    #[test]
+    fn struct_missing_node_id_in_edge() {
+        let mut file = NamedTempFile::new().unwrap();
+        write!(
+            file,
+            r#"{{
+                "version":"1.0",
+                "name":"wf",
+                "nodes":[
+                    {{ "id":"n1","node_fqdn":"sys:start" }}
+                ],
+                "edges":[
+                    {{ "from_node":"nX","from_output":"__success__","to_node":"n1","to_input":"__input__" }}
+                ]
+            }}"#
+        ).unwrap();
+
+        let err = validate_structure(file.path()).unwrap_err();
+        match err {
+            StructureError::MissingNode(ref id) if id == "nX" => {},
+            _ => panic!("expected MissingNode(\"nX\"), got {:?}", err),
+        }
+    }
+
+    #[test]
+    fn struct_empty_port_name() {
+        let mut file = NamedTempFile::new().unwrap();
+        write!(
+            file,
+            r#"{{
+                "version":"1.0",
+                "name":"wf",
+                "nodes":[
+                    {{ "id":"n1","node_fqdn":"sys:start" }}
+                ],
+                "edges":[
+                    {{ "from_node":"n1","from_output":"   ","to_node":"n1","to_input":"__input__" }}
+                ]
+            }}"#
+        ).unwrap();
+
+        let err = validate_structure(file.path()).unwrap_err();
+        match err {
+            StructureError::EmptyPort => {},
+            _ => panic!("expected EmptyPort, got {:?}", err),
+        }
+    }
+
+    // ----------------- Heavy validator tests -------------
+
+    #[test]
+    fn heavy_version_mismatch() {
+        let mut file = NamedTempFile::new().unwrap();
+        write!(
+            file,
+            r#"{{
+                "version":"2.0",
+                "name":"wf",
+                "nodes":[],
+                "edges":[]
+            }}"#
         ).unwrap();
 
         let cfg = make_config();
-        let pm = PluginManager::new();
+        let pm  = PluginManager::new();
         let err = validate_workflow_file(file.path(), &cfg, &pm).unwrap_err();
         assert!(
-            format!("{}",err).contains("Duplicate node Id: n1"),
-            "got error: {}",
+            format!("{}", err).contains("Unsupported workflow version: 2.0"),
+            "got error: {:?}",
             err
         );
     }
 
     #[test]
-    fn unknown_edge_reference() {
+    fn heavy_duplicate_node_ids() {
         let mut file = NamedTempFile::new().unwrap();
         write!(
             file,
             r#"{{
-                "version": "1.0",
-                "name": "wf",
-                "nodes": [
-                    {{ "id": "n1", "node_fqdn": "sys:start" }}
+                "version":"1.0",
+                "name":"wf",
+                "nodes":[
+                    {{ "id":"n1","node_fqdn":"sys:start" }},
+                    {{ "id":"n1","node_fqdn":"sys:start" }}
                 ],
-                "edges": [
-                    {{ "from_node": "n1", "from_output": "on_success", "to_node": "n2", "to_input": "__flow__" }}
+                "edges":[]
+            }}"#
+        ).unwrap();
+
+        let cfg = make_config();
+        let pm  = PluginManager::new();
+        let err = validate_workflow_file(file.path(), &cfg, &pm).unwrap_err();
+        assert!(
+            format!("{}", err).contains("Duplicate node Id: n1"),
+            "got error: {:?}",
+            err
+        );
+    }
+
+    #[test]
+    fn heavy_unknown_edge_reference() {
+        let mut file = NamedTempFile::new().unwrap();
+        write!(
+            file,
+            r#"{{
+                "version":"1.0",
+                "name":"wf",
+                "nodes":[
+                    {{ "id":"n1","node_fqdn":"sys:start" }}
+                ],
+                "edges":[
+                    {{ "from_node":"n1","from_output":"__success__","to_node":"n2","to_input":"__input__" }}
                 ]
             }}"#
         ).unwrap();
 
         let cfg = make_config();
-        let pm = PluginManager::new();
+        let pm  = PluginManager::new();
         let err = validate_workflow_file(file.path(), &cfg, &pm).unwrap_err();
-
         assert!(
-            format!("{}",err).contains("Edge to unknown node: n2"),
-            "got error: {}",
+            format!("{}", err).contains("Edge to unknown node: n2"),
+            "got error: {:?}",
             err
         );
     }
 
     #[test]
-    fn invalid_fqdn_format() {
+    fn heavy_invalid_fqdn_format() {
         let mut file = NamedTempFile::new().unwrap();
         write!(
             file,
             r#"{{
-                "version": "1.0",
-                "name": "wf",
-                "nodes": [
-                    {{ "id": "n1", "node_fqdn": "invalidFQDN" }}
+                "version":"1.0",
+                "name":"wf",
+                "nodes":[
+                    {{ "id":"n1","node_fqdn":"invalidFQDN" }}
                 ],
-                "edges": []
+                "edges":[]
             }}"#
         ).unwrap();
 
         let cfg = make_config();
-        let pm = PluginManager::new();
+        let pm  = PluginManager::new();
         let err = validate_workflow_file(file.path(), &cfg, &pm).unwrap_err();
-
         assert!(
-            format!("{}",err).contains("Invalid FQDN: invalidFQDN"),
-            "got error: {}",
+            format!("{}", err).contains("Invalid FQDN: invalidFQDN"),
+            "got error: {:?}",
             err
         );
     }
 
     #[test]
-    fn unknown_plugin_namespace() {
-        // valid id and fqdn format, but no "foo" plugin loaded
+    fn heavy_unknown_plugin_namespace() {
         let mut file = NamedTempFile::new().unwrap();
         write!(
             file,
             r#"{{
-                "version": "1.0",
-                "name": "wf",
-                "nodes": [
-                    {{ "id": "n1", "node_fqdn": "foo:bar" }}
+                "version":"1.0",
+                "name":"wf",
+                "nodes":[
+                    {{ "id":"n1","node_fqdn":"foo:bar" }}
                 ],
-                "edges": []
+                "edges":[]
             }}"#
         ).unwrap();
 
         let cfg = make_config();
-        let pm = PluginManager::new();
+        let pm  = PluginManager::new();
         let err = validate_workflow_file(file.path(), &cfg, &pm).unwrap_err();
         assert!(
             format!("{}", err).contains("Unknown plugin namespace: foo"),
-            "got error: {}",
+            "got error: {:?}",
             err
         );
     }
-
 }

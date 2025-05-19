@@ -28,7 +28,7 @@ pub struct TypeProperties {
 
 /// Node specification
 /// matchin `nodes/<node_fqdn>.json`
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct NodeSpec {
     #[serde(rename = "type")]
     pub node_type: String,       // primitive | action | flow
@@ -74,7 +74,7 @@ pub struct NodeInstance {
 }
 
 /// Taken from `workflow_validator`, an edge connecting two instances
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct EdgeDefinition {
     pub from_node: String,
     pub from_output: String,
