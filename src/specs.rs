@@ -36,8 +36,11 @@ pub struct NodeSpec {
     pub plugin_version: String,
     pub node_version: String,
 
-    // TODO: Check if this is correct
-    pub entrypoint: Option<String>,     //relative path within the plugin
+    // Example: for python plugins, which class to dispatch to
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub class: Option<String>,
+
+    
 
     pub inputs: Vec<IOField>,
     pub outputs: Vec<IOField>,

@@ -37,9 +37,24 @@ pub struct PluginManifest {
     #[serde(default)]
     pub metadata: Option<PluginMetadata>,
 
+    // Plugin executor
+    // Overwrites runtime. to be used by non regular language types
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub executor: Option<Vec<String>>,
+
+    // Plugin Runtime
+    pub runtime: RuntimeConfig,
+
     // Relative paths to type definitions
     pub types: Vec<PathBuf>,
     pub nodes: Vec<PathBuf>,
+}
+
+#[derive(Debug,Deserialize)]
+pub struct RuntimeConfig {
+    pub language: String,
+    pub version: String,
+    pub manager: String,
 }
 
 // Additional metadata fields
@@ -82,6 +97,8 @@ impl Plugin {
 
         Ok(())
     }
+
+
 }
 
 /// Manages discovery and loading of Moirai plugins

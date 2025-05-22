@@ -1,6 +1,6 @@
 use crate::{
     engine::{EngineError, EngineEvent},
-    plugin_manager::PluginManager,
+    plugin_manager::{PluginManager, PluginManifest},
     specs::{EdgeDefinition,NodeSpec},
     workflow_validator::{WorkflowDefinition, WorkflowError}
 };
@@ -8,7 +8,7 @@ use crate::{
 use serde_json::Value;
 use tokio::sync::{mpsc, oneshot};
 use std::{
-    collections::HashMap
+    collections::HashMap, f32::consts::E, io::{BufRead, BufReader, Stdout, Write}, process::{Command, Stdio}, thread
 };
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -18,6 +18,8 @@ pub enum Status { NotStarted, Running, Success, Failed }
 pub struct NodeState {
     /// Static spec from plugin
     pub spec: NodeSpec,
+
+    pub executor: Vec<String>,
     
     /// Pre-filled inputs.
     /// literal inputs or primitive value
@@ -65,6 +67,9 @@ impl Graph {
                 .expect("Plugin was validated earlier")
                 .clone();
 
+            // Load executor
+            let executor = executor_for(&plugin.manifest);
+
             // seed inputs from workflow instance
             let mut inputs_map = HashMap::new();
             if let Some(ref map) = inst.inputs {
@@ -81,6 +86,7 @@ impl Graph {
 
                 NodeState {
                     spec,
+                    executor,
                     inputs: inputs_map,
                     outputs: None,
                     status: Status::NotStarted,
@@ -247,21 +253,29 @@ impl Graph {
             message: format!("Executing {}", node_id),
         });
 
-        // ! [ Mocked ]
-        // TODO: replace this stub with real node runner that streams NDJSON events
-        // Here we simply mark success with no outputs:
+        
+        let state = self.nodes.get(node_id).unwrap();
+        let (status, outputs) = run_subprocess_node(
+            &state.executor,
+            &state.spec,
+            &state.inputs,
+            cancel_rx,
+            &event_tx,
+            workflow_id,
+            node_id,
+        );
+
         {
-            let state = self.nodes.get_mut(node_id).unwrap();
-            state.status = Status::Success;
-            state.outputs = Some(HashMap::new());
+            let st = self.nodes.get_mut(node_id).unwrap();
+            st.status  = status;
+            st.outputs = Some(outputs);
         }
         let _ = event_tx.send(EngineEvent::NodeLog {
             workflow_id: workflow_id.to_string(),
-            node_id: node_id.to_string(),
-            level: "info".into(),
-            message: format!("Finished {} with Success", node_id),
+            node_id:     node_id.to_string(),
+            level:       "info".into(),
+            message:     format!("Finished {} with {:?}", node_id, status),
         });
-        // ! [ End Mocked ]
 
         // *6. Control flow: Pick the next one (if any)
         let state_status = {
@@ -294,6 +308,190 @@ impl Graph {
 
     }
 }
+
+fn run_subprocess_node(
+    executor: &[String],
+    spec: &NodeSpec,
+    inputs: &HashMap<String, Value>,
+    cancel_rx: &mut oneshot::Receiver<()>,
+    event_tx: &mpsc::UnboundedSender<EngineEvent>,
+    workflow_id: &str,
+    node_id: &str,
+    ) -> (Status, HashMap<String, Value>) {
+        // *1. Build the command
+        let mut cmd = Command::new(&executor[0]);
+        cmd.args(&executor[1..]);
+
+        // If this python and has classname
+        if let Some(class_name) = &spec.class {
+            cmd.arg(class_name);
+        }
+
+        // Set up stdio pipes
+        cmd.stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        // *2. Spawn child process
+        let mut child = match cmd.spawn() {
+            Ok(c) => c,
+            Err(e) => {
+                let _ = event_tx.send(EngineEvent::NodeError {
+                    workflow_id: workflow_id.to_string(),
+                    node_id:     node_id.to_string(),
+                    error:       format!("Failed to spawn process: {}", e),
+                });
+                return (Status::Failed, HashMap::new());
+            }
+        };
+
+        // *3. Write inputs JSON into stdin
+        if let Some(mut stdin) = child.stdin.take() {
+            // Write the JSON
+            if let Err(e) = serde_json::to_writer(&mut stdin, &inputs) {
+                let _ = event_tx.send(EngineEvent::NodeError {
+                    workflow_id: workflow_id.into(),
+                    node_id:     node_id.into(),
+                    error:       format!("Failed to serialize inputs: {}", e),
+                });
+                let _ = child.kill();
+                return (Status::Failed, HashMap::new());
+            }
+
+            // Flush the writer
+            if let Err(e) = stdin.flush() {
+                let _ = event_tx.send(EngineEvent::NodeError {
+                    workflow_id: workflow_id.into(),
+                    node_id:     node_id.into(),
+                    error:       format!("Failed to flush stdin: {}", e),
+                });
+                let _ = child.kill();
+                return (Status::Failed, HashMap::new());
+            }
+        }
+
+        // *4. Spawn a thread to reader stderr -> error logs
+        if let Some(stderr) = child.stderr.take() {
+            let tx = event_tx.clone();
+            let wf = workflow_id.to_string();
+            let nid = node_id.to_string();
+
+            thread::spawn(move || {
+                let reader = BufReader::new(stderr);
+                for line in reader.lines().filter_map(Result::ok) {
+                    let _ = tx.send(EngineEvent::NodeLog {
+                        workflow_id: wf.clone(),
+                        node_id:     nid.clone(),
+                        level:       "error".into(),
+                        message:     line,
+                    });
+                }
+            });
+        }
+
+        // *5. Read stdout libe by line
+        let mut outputs = HashMap::new();
+        if let Some(stdout) = child.stdout.take() {
+            let reader = BufReader::new(stdout);
+            for line_res in reader.lines() {
+                // Check for cancellation
+                if let Ok(_) = cancel_rx.try_recv() {
+                    let _ = child.kill();
+                    return (Status::Failed, outputs);
+                }
+
+                let line = match line_res {
+                    Ok(l) => l,
+                    Err(e) => {
+                        let _ = event_tx.send(EngineEvent::NodeError {
+                            workflow_id: workflow_id.to_string(),
+                            node_id:     node_id.to_string(),
+                            error:       format!("Stdout I/O error: {}", e),
+                        });
+                        continue;
+                    } 
+                };
+
+                // Try parsing as JSON with field "type"
+                if let Ok(val) = serde_json::from_str::<Value>(&line) {
+                    if let Some(typ) = val.get("type").and_then(|v| v.as_str()) {
+                        match typ {
+                            "output" => {
+                                if let Some(obj) = val.get("outputs").and_then(| v|  v.as_object()) {
+                                    // Overwrite outputs
+                                    outputs = obj
+                                        .iter()
+                                        .map(| (k,v)| (k.clone(),v.clone()))
+                                        .collect();
+                                    let _ = event_tx.send(EngineEvent::NodeOutput {
+                                        workflow_id: workflow_id.to_string(),
+                                        node_id:     node_id.to_string(),
+                                    });
+                                }
+                                continue;
+                            }
+                            "log" => {
+                                let level = val.get("level")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("info");
+                                let msg = val.get("message")
+                                    .and_then(| v| v.as_str())
+                                    .unwrap_or("");
+                                let _ = event_tx.send(EngineEvent::NodeLog {
+                                    workflow_id: workflow_id.to_string(),
+                                    node_id:     node_id.to_string(),
+                                    level:       level.into(),
+                                    message:     msg.into(),
+                                });
+                                continue;;
+                            }
+                            _ => { /* Other event types here! */}
+                        }
+                    }
+                }
+                // Fallback: plain‐text info log
+                let _ = event_tx.send(EngineEvent::NodeLog {
+                    workflow_id: workflow_id.to_string(),
+                    node_id:     node_id.to_string(),
+                    level:       "info".into(),
+                    message:     line,
+                });
+            }
+        }
+        // *6 wait for the process to exit
+        let status = match child.wait() {
+            Ok(exit) if exit.success() => Status::Success,
+            Ok(_) | Err(_)                         => Status::Failed
+        };
+    (status, outputs)
+}
+
+
+
+fn executor_for(man: &PluginManifest) -> Vec<String> {
+    if let Some(exec) = &man.executor {
+        return exec.clone();
+    }
+    let lang    = man.runtime.language.as_str();
+    let manager = man.runtime.manager.as_str();
+    let module  = &man.plugin_fqdn;
+
+    match (lang, manager) {
+        ("python", "uv") =>
+            vec!["uv".into(), "run".into(), "python".into(), "-m".into(), module.clone()],
+
+        ("python", "poetry") =>
+            vec!["poetry".into(), "run".into(), "python".into(), "-m".into(), module.clone()],
+
+            ("bash", _) =>
+            vec!["bash".into(), "plugin.sh".into()],
+
+        other =>
+            panic!("No default executor for {:?}", other),
+    }
+}
+
+
 
 #[cfg(test)]
 mod tests {

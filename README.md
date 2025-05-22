@@ -153,6 +153,34 @@ myplugin/
 │
 └── README.md                 # Plugin documentation
 ```
+### Plugin json
+
+plugin.json
+```json
+{
+  "plugin_fqdn": "mysys",
+  "version": "1.0.0",
+  "metadata": {
+    "author": "Alice",
+    "created": "2025-05-22",
+    "tags": ["example", "demo"]
+  },
+  "runtime": {
+    "language":"python",
+    "version":"3.12",
+    "manager":"uv"
+  },
+  "types": [
+    "types/string.json",
+    "types/number.json"
+  ],
+  "nodes": [
+    "nodes/log.json",
+    "nodes/uppercase.json"
+  ]
+}
+
+``` 
 
 ### Data type definitions
 
