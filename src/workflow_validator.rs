@@ -88,8 +88,10 @@ pub fn validate_workflow_file(
         }
 
         let namespace = parts[0];
-        let plugin = plugins.get(namespace)
-            .ok_or_else(|| WorkflowError::Validation(format!("Unknown plugin namespace: {}", namespace)))?;
+        if namespace != "sys" {
+            plugins.get(namespace)
+                .ok_or_else(|| WorkflowError::Validation(format!("Unknown plugin namespace: {}", namespace)))?;
+        }
         // TODO: Verify node_fqdn in plugin.manifest.nodes?
     }
 
@@ -294,7 +296,9 @@ mod tests {
             r#"{{
                 "version":"2.0",
                 "name":"wf",
-                "nodes":[],
+                "nodes":[
+                    {{ "id":"n1","node_fqdn":"sys:start" }}
+                ],
                 "edges":[]
             }}"#
         ).unwrap();
@@ -302,11 +306,10 @@ mod tests {
         let cfg = make_config();
         let pm  = PluginManager::new();
         let err = validate_workflow_file(file.path(), &cfg, &pm).unwrap_err();
-        assert!(
-            format!("{}", err).contains("Unsupported workflow version: 2.0"),
-            "got error: {:?}",
-            err
-        );
+        match err {
+            WorkflowError::Validation(ref msg) if msg.contains("Unsupported workflow version: 2.0") => {},
+            _ => panic!("Expected version mismatch error, got {:?}", err),
+        }
     }
 
     #[test]
@@ -318,8 +321,9 @@ mod tests {
                 "version":"1.0",
                 "name":"wf",
                 "nodes":[
-                    {{ "id":"n1","node_fqdn":"sys:start" }},
-                    {{ "id":"n1","node_fqdn":"sys:start" }}
+                    {{ "id":"n0","node_fqdn":"sys:start" }},
+                    {{ "id":"n1","node_fqdn":"sys:log" }},
+                    {{ "id":"n1","node_fqdn":"sys:log" }}
                 ],
                 "edges":[]
             }}"#
@@ -328,11 +332,10 @@ mod tests {
         let cfg = make_config();
         let pm  = PluginManager::new();
         let err = validate_workflow_file(file.path(), &cfg, &pm).unwrap_err();
-        assert!(
-            format!("{}", err).contains("Duplicate node Id: n1"),
-            "got error: {:?}",
-            err
-        );
+        match err {
+            WorkflowError::Validation(ref msg) if msg.contains("Duplicate node Id: n1") => {},
+            _ => panic!("Expected duplicate node id error, got {:?}", err),
+        }
     }
 
     #[test]
@@ -355,11 +358,10 @@ mod tests {
         let cfg = make_config();
         let pm  = PluginManager::new();
         let err = validate_workflow_file(file.path(), &cfg, &pm).unwrap_err();
-        assert!(
-            format!("{}", err).contains("Edge to unknown node: n2"),
-            "got error: {:?}",
-            err
-        );
+        match err {
+            WorkflowError::Structure(StructureError::MissingNode(ref id)) if id == "n2" => {},
+            _ => panic!("Expected missing node error for 'n2', got {:?}", err),
+        }
     }
 
     #[test]
@@ -371,7 +373,8 @@ mod tests {
                 "version":"1.0",
                 "name":"wf",
                 "nodes":[
-                    {{ "id":"n1","node_fqdn":"invalidFQDN" }}
+                    {{ "id":"n1","node_fqdn":"sys:start" }},
+                    {{ "id":"n2","node_fqdn":"invalidFQDN" }}
                 ],
                 "edges":[]
             }}"#
@@ -380,11 +383,10 @@ mod tests {
         let cfg = make_config();
         let pm  = PluginManager::new();
         let err = validate_workflow_file(file.path(), &cfg, &pm).unwrap_err();
-        assert!(
-            format!("{}", err).contains("Invalid FQDN: invalidFQDN"),
-            "got error: {:?}",
-            err
-        );
+        match err {
+            WorkflowError::Validation(ref msg) if msg.contains("Invalid FQDN: invalidFQDN") => {},
+            _ => panic!("Expected invalid FQDN error, got {:?}", err),
+        }
     }
 
     #[test]
@@ -396,7 +398,8 @@ mod tests {
                 "version":"1.0",
                 "name":"wf",
                 "nodes":[
-                    {{ "id":"n1","node_fqdn":"foo:bar" }}
+                    {{ "id":"n1","node_fqdn":"sys:start" }},
+                    {{ "id":"n2","node_fqdn":"foo:bar" }}
                 ],
                 "edges":[]
             }}"#
@@ -405,10 +408,9 @@ mod tests {
         let cfg = make_config();
         let pm  = PluginManager::new();
         let err = validate_workflow_file(file.path(), &cfg, &pm).unwrap_err();
-        assert!(
-            format!("{}", err).contains("Unknown plugin namespace: foo"),
-            "got error: {:?}",
-            err
-        );
+        match err {
+            WorkflowError::Validation(ref msg) if msg.contains("Unknown plugin namespace: foo") => {},
+            _ => panic!("Expected unknown plugin namespace error, got {:?}", err),
+        }
     }
 }
